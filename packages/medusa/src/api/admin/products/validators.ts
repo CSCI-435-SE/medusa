@@ -235,7 +235,7 @@ export const IdAssociation = z.object({
 export type AdminCreateProductType = z.infer<typeof CreateProduct>
 export const CreateProduct = z
   .object({
-    title: z.string(),
+    title: z.string().max(255),
     subtitle: z.string().nullish(),
     description: z.string().nullish(),
     is_giftcard: booleanString().optional().default(false),
@@ -280,7 +280,7 @@ export const AdminCreateProduct = WithAdditionalData(CreateProduct)
 export type AdminUpdateProductType = z.infer<typeof UpdateProduct>
 export const UpdateProduct = z
   .object({
-    title: z.string().optional(),
+    title: z.string().max(255).optional(),
     discountable: booleanString().optional(),
     is_giftcard: booleanString().optional(),
     options: z.any().superRefine((val, ctx) => {
