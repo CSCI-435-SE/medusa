@@ -15,16 +15,6 @@ const renderWithTooltipProvider = (ui: ReactElement) => {
 }
 
 describe("StatusCell", () => {
-  it("renders a short label without a tooltip trigger", () => {
-    const { container } = renderWithTooltipProvider(
-      <StatusCell color="green">Captured</StatusCell>
-    )
-
-    const label = screen.getByText("Captured")
-    expect(label).toBeTruthy()
-    expect(container.querySelector("[data-state]")).toBeNull()
-  })
-
   it("reveals the full label in a tooltip on hover when the label is long", async () => {
     const user = userEvent.setup()
     renderWithTooltipProvider(
@@ -40,5 +30,20 @@ describe("StatusCell", () => {
 
     const tooltip = await screen.findByRole("tooltip")
     expect(tooltip.textContent).toBe("Partially authorized")
+  })
+
+  it("also shows a tooltip on hover for a short label", async () => {
+    const user = userEvent.setup()
+    renderWithTooltipProvider(<StatusCell color="green">Captured</StatusCell>)
+
+    expect(screen.queryByRole("tooltip")).toBeNull()
+
+    const label = screen.getByText("Captured")
+    expect(label.getAttribute("data-state")).toBe("closed")
+
+    await user.hover(label)
+
+    const tooltip = await screen.findByRole("tooltip")
+    expect(tooltip.textContent).toBe("Captured")
   })
 })

@@ -27,14 +27,21 @@ const renderWithTooltipProvider = (ui: ReactElement) => {
 }
 
 describe("PaymentStatusCell", () => {
-  it("shows a short payment status without a tooltip", () => {
+  it("shows the full status text on hover for a short payment status", async () => {
+    const user = userEvent.setup()
     renderWithTooltipProvider(<PaymentStatusCell status="captured" />)
 
-    expect(screen.getByText("Captured")).toBeTruthy()
     expect(screen.queryByRole("tooltip")).toBeNull()
+
+    const label = screen.getByText("Captured")
+
+    await user.hover(label)
+
+    const tooltip = await screen.findByRole("tooltip")
+    expect(tooltip.textContent).toBe("Captured")
   })
 
-  it("reveals the full status text on hover when the label is truncated", async () => {
+  it("shows the full status text on hover for a long, truncated payment status", async () => {
     const user = userEvent.setup()
     renderWithTooltipProvider(
       <PaymentStatusCell status="partially_authorized" />

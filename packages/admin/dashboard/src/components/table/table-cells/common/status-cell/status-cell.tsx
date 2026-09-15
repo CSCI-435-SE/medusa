@@ -34,7 +34,7 @@ export const StatusCell = ({ color, children }: StatusCellProps) => {
       </div>
       <ConditionalTooltip
         content={label}
-        showTooltip={!!label && label.length > 10}
+        showTooltip={!!label}
       >
         <span className="truncate">{children}</span>
       </ConditionalTooltip>
