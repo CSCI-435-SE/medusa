@@ -213,6 +213,17 @@ export const EditProductForm = ({ product }: EditProductFormProps) => {
                       <Form.Control>
                         <Textarea {...field} />
                       </Form.Control>
+                      {/*
+                        Live character count. `field.value` comes from
+                        react-hook-form's Controller, so it already re-renders
+                        on every keystroke - no extra state needed to keep
+                        this in sync with the textarea.
+                      */}
+                      <Form.Hint>
+                        {t("general.characters", {
+                          count: field.value?.length ?? 0,
+                        })}
+                      </Form.Hint>
                       <Form.ErrorMessage />
                     </Form.Item>
                   )

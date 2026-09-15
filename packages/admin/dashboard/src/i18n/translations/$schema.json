@@ -167,6 +167,21 @@
         "values_other": {
           "type": "string"
         },
+        "characters_one": {
+          "type": "string"
+        },
+        "characters_two": {
+          "type": "string"
+        },
+        "characters_few": {
+          "type": "string"
+        },
+        "characters_many": {
+          "type": "string"
+        },
+        "characters_other": {
+          "type": "string"
+        },
         "countSelected": {
           "type": "string"
         },
