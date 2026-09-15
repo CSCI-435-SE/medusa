@@ -1709,6 +1709,19 @@ medusaIntegrationTestRunner({
           )
         })
 
+        it("fails to create a product with a title exceeding 255 characters", async () => {
+          const payload = getProductFixture({
+            title: "a".repeat(256),
+          })
+
+          const error = await api
+            .post("/admin/products", payload, adminHeaders)
+            .catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
+          expect(error.response.data.type).toEqual("invalid_data")
+        })
+
         it("creates a product variant with price rules", async () => {
           const response = await api.post(
             "/admin/products",
@@ -2789,6 +2802,19 @@ medusaIntegrationTestRunner({
             expect(e.response.status).toEqual(400)
             expect(e.response.data.type).toEqual("invalid_data")
           }
+        })
+
+        it("fails to update a product with a title exceeding 255 characters", async () => {
+          const payload = {
+            title: "a".repeat(256),
+          }
+
+          const error = await api
+            .post(`/admin/products/${baseProduct.id}`, payload, adminHeaders)
+            .catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
+          expect(error.response.data.type).toEqual("invalid_data")
         })
 
         // TODO: Apply variant ranking correctly
