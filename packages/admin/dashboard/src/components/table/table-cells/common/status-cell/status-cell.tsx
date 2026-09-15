@@ -1,6 +1,5 @@
 import { clx } from "@medusajs/ui"
 import { PropsWithChildren } from "react"
-import { ConditionalTooltip } from "../../../../common/conditional-tooltip"
 
 type StatusCellProps = PropsWithChildren<{
   color?: "green" | "red" | "blue" | "orange" | "grey" | "purple"
@@ -10,8 +9,6 @@ type StatusCellProps = PropsWithChildren<{
  * @deprecated Use the new DataTable and DataTableStatusCell instead
  */
 export const StatusCell = ({ color, children }: StatusCellProps) => {
-  const label = typeof children === "string" ? children : undefined
-
   return (
     <div className="txt-compact-small text-ui-fg-subtle flex h-full w-full items-center gap-x-2 overflow-hidden">
       <div
@@ -32,12 +29,7 @@ export const StatusCell = ({ color, children }: StatusCellProps) => {
           )}
         />
       </div>
-      <ConditionalTooltip
-        content={label}
-        showTooltip={!!label}
-      >
-        <span className="truncate">{children}</span>
-      </ConditionalTooltip>
+      <span className="truncate">{children}</span>
     </div>
   )
 }
