@@ -1,5 +1,6 @@
 import { HttpTypes } from "@medusajs/types"
 import { useTranslation } from "react-i18next"
+import { ConditionalTooltip } from "../../../../common/conditional-tooltip"
 import { getOrderPaymentStatus } from "../../../../../lib/order-helpers"
 import { StatusCell } from "../../common/status-cell"
 
@@ -12,7 +13,13 @@ export const PaymentStatusCell = ({ status }: PaymentStatusCellProps) => {
 
   const { label, color } = getOrderPaymentStatus(t, status)
 
-  return <StatusCell color={color}>{label}</StatusCell>
+  return (
+    <ConditionalTooltip content={label} showTooltip={!!label}>
+      <div className="h-full w-full">
+        <StatusCell color={color}>{label}</StatusCell>
+      </div>
+    </ConditionalTooltip>
+  )
 }
 
 export const PaymentStatusHeader = () => {
