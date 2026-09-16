@@ -46,6 +46,8 @@
     "items_other": "{{count}} items",
     "values_one": "{{count}} value",
     "values_other": "{{count}} values",
+    "characters_one": "{{count}} character",
+    "characters_other": "{{count}} characters",
     "countSelected": "{{count}} selected",
     "countOfTotalSelected": "{{count}} of {{total}} selected",
     "plusCount": "+ {{count}}",
