@@ -132,6 +132,22 @@ export const CustomerGeneralSection = ({
           {customer.phone || "-"}
         </Text>
       </div>
+      <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
+        <Text size="small" leading="compact" weight="plus">
+          {t("customers.fields.orderCount")}
+        </Text>
+        <Text size="small" leading="compact">
+          {customer.order_count ?? 0}
+        </Text>
+      </div>
+      <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
+        <Text size="small" leading="compact" weight="plus">
+          {t("customers.fields.lifetimeValue")}
+        </Text>
+        <Text size="small" leading="compact">
+          ${(customer.lifetime_value ?? 0).toFixed(2)}
+        </Text>
+      </div>
     </Container>
   )
 }

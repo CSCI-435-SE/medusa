@@ -8,7 +8,7 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { refetchCustomer } from "../helpers"
+import { getCustomerOrderStats, refetchCustomer } from "../helpers"
 import { AdminUpdateCustomerType } from "../validators"
 
 export const GET = async (
@@ -28,7 +28,12 @@ export const GET = async (
     )
   }
 
-  res.status(200).json({ customer })
+  const { order_count, lifetime_value } = await getCustomerOrderStats(
+    req.params.id,
+    req.scope
+  )
+
+  res.status(200).json({ customer: { ...customer, order_count, lifetime_value } })
 }
 
 export const POST = async (
