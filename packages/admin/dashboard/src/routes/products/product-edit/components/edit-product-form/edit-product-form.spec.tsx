@@ -7,6 +7,21 @@ import userEvent from "@testing-library/user-event"
 import { RouterProvider, createMemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+// EditProductForm pulls in the SDK client (lib/client/client.ts) via
+// useUpdateProduct, which reads __BACKEND_URL__/__AUTH_TYPE__/
+// __JWT_TOKEN_STORAGE_KEY__ as bare globals at module load time. Those are
+// normally injected by Vite's `define` config when the app actually runs,
+// but nothing provides them in the test environment, so referencing them
+// throws a ReferenceError as soon as this file is imported. Setting them
+// here mirrors the same fix already used in combobox.spec.tsx for the same
+// underlying issue.
+vi.hoisted(() => {
+  const g = global as any
+  g.__BACKEND_URL__ = "http://localhost:9000"
+  g.__AUTH_TYPE__ = "session"
+  g.__JWT_TOKEN_STORAGE_KEY__ = ""
+})
+
 import { RouteDrawer } from "../../../../../components/modals"
 import { ExtensionApi } from "../../../../../dashboard-app/types"
 import { ExtensionContext } from "../../../../../providers/extension-provider/extension-context"
