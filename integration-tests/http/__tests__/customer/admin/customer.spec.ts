@@ -509,6 +509,59 @@ medusaIntegrationTestRunner({
           })
         )
       })
+
+      it("should include order_count and lifetime_value based on the customer's orders", async () => {
+        const customer = (
+          await api.post(
+            "/admin/customers",
+            { email: "order-stats@email.com" },
+            adminHeaders
+          )
+        ).data.customer
+
+        const orderModule = container.resolve(Modules.ORDER)
+
+        await orderModule.createOrders({
+          customer_id: customer.id,
+          currency_code: "usd",
+          items: [{ title: "Test item 1", quantity: 1, unit_price: 5000 }],
+        })
+
+        await orderModule.createOrders({
+          customer_id: customer.id,
+          currency_code: "usd",
+          items: [{ title: "Test item 2", quantity: 2, unit_price: 2500 }],
+        })
+
+        const response = await api.get(
+          `/admin/customers/${customer.id}`,
+          adminHeaders
+        )
+
+        expect(response.status).toEqual(200)
+        expect(response.data.customer.order_count).toEqual(2)
+        // order totals: (1 * 5000) + (2 * 2500) = 10000, no tax/shipping applied
+        expect(response.data.customer.lifetime_value).toEqual(10000)
+      })
+
+      it("should return zero order_count and lifetime_value for a customer with no orders", async () => {
+        const customer = (
+          await api.post(
+            "/admin/customers",
+            { email: "no-orders@email.com" },
+            adminHeaders
+          )
+        ).data.customer
+
+        const response = await api.get(
+          `/admin/customers/${customer.id}`,
+          adminHeaders
+        )
+
+        expect(response.status).toEqual(200)
+        expect(response.data.customer.order_count).toEqual(0)
+        expect(response.data.customer.lifetime_value).toEqual(0)
+      })
     })
 
     describe("DELETE /admin/customers/:id", () => {
