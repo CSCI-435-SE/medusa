@@ -19,8 +19,8 @@ export interface AdminCustomer extends BaseCustomer {
    */
   order_count?: number
   /**
-   * The total amount spent by the customer across all orders.
+   * The total amount spent by the customer across all orders, grouped by currency.
    */
-  lifetime_value?: number
+  lifetime_value?: { currency_code: string; amount: number }[]
 }
 export interface AdminCustomerAddress extends BaseCustomerAddress {}

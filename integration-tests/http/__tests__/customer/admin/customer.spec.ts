@@ -541,10 +541,12 @@ medusaIntegrationTestRunner({
         expect(response.status).toEqual(200)
         expect(response.data.customer.order_count).toEqual(2)
         // order totals: (1 * 5000) + (2 * 2500) = 10000, no tax/shipping applied
-        expect(response.data.customer.lifetime_value).toEqual(10000)
+        expect(response.data.customer.lifetime_value).toEqual([
+          { currency_code: "usd", amount: 10000 },
+        ])
       })
 
-      it("should return zero order_count and lifetime_value for a customer with no orders", async () => {
+      it("should return zero order_count and an empty lifetime_value for a customer with no orders", async () => {
         const customer = (
           await api.post(
             "/admin/customers",
@@ -560,7 +562,52 @@ medusaIntegrationTestRunner({
 
         expect(response.status).toEqual(200)
         expect(response.data.customer.order_count).toEqual(0)
-        expect(response.data.customer.lifetime_value).toEqual(0)
+        expect(response.data.customer.lifetime_value).toEqual([])
+      })
+
+      it("should group lifetime_value by currency when a customer has orders in multiple currencies", async () => {
+        const customer = (
+          await api.post(
+            "/admin/customers",
+            { email: "multi-currency@email.com" },
+            adminHeaders
+          )
+        ).data.customer
+
+        const orderModule = container.resolve(Modules.ORDER)
+
+        await orderModule.createOrders({
+          customer_id: customer.id,
+          currency_code: "usd",
+          items: [{ title: "Test item 1", quantity: 1, unit_price: 5000 }],
+        })
+
+        await orderModule.createOrders({
+          customer_id: customer.id,
+          currency_code: "eur",
+          items: [{ title: "Test item 2", quantity: 1, unit_price: 3000 }],
+        })
+
+        await orderModule.createOrders({
+          customer_id: customer.id,
+          currency_code: "eur",
+          items: [{ title: "Test item 3", quantity: 1, unit_price: 1000 }],
+        })
+
+        const response = await api.get(
+          `/admin/customers/${customer.id}`,
+          adminHeaders
+        )
+
+        expect(response.status).toEqual(200)
+        expect(response.data.customer.order_count).toEqual(3)
+        expect(response.data.customer.lifetime_value).toEqual(
+          expect.arrayContaining([
+            { currency_code: "usd", amount: 5000 },
+            { currency_code: "eur", amount: 4000 },
+          ])
+        )
+        expect(response.data.customer.lifetime_value.length).toEqual(2)
       })
     })
 

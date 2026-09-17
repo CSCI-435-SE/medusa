@@ -32,14 +32,24 @@ export const getCustomerOrderStats = async (
     variables: {
       filters: { id: customerId },
     },
-    fields: ["orders.id", "orders.total"],
+    fields: ["orders.id", "orders.total", "orders.currency_code"],
   })
 
   const customers = await remoteQuery(queryObject)
-  const orders: { total: number }[] = customers[0]?.orders ?? []
+  const orders: { total: number; currency_code: string }[] =
+    customers[0]?.orders ?? []
+
+  const totalsByCurrency = new Map<string, number>()
+  for (const order of orders) {
+    const currentTotal = totalsByCurrency.get(order.currency_code) ?? 0
+    totalsByCurrency.set(order.currency_code, currentTotal + (order.total ?? 0))
+  }
 
   return {
     order_count: orders.length,
-    lifetime_value: orders.reduce((sum, order) => sum + (order.total ?? 0), 0),
+    lifetime_value: Array.from(totalsByCurrency, ([currency_code, amount]) => ({
+      currency_code,
+      amount,
+    })),
   }
 }
