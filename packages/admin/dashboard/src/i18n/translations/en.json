@@ -1071,7 +1071,9 @@
     "fields": {
       "guest": "Guest",
       "registered": "Registered",
-      "groups": "Groups"
+      "groups": "Groups",
+      "orderCount": "Order Count",
+      "lifetimeValue": "Lifetime Value"
     },
     "registered": "Registered",
     "guest": "Guest",

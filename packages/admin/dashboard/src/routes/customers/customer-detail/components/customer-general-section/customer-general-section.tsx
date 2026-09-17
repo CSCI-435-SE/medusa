@@ -17,6 +17,7 @@ import {
 } from "../../../../../components/common/action-menu"
 import { useDeleteCustomer } from "../../../../../hooks/api/customers"
 import { useCustomerPermissions } from "../../../../../hooks/use-resource-permissions"
+import { getStylizedAmount } from "../../../../../lib/money-amount-helpers"
 
 type CustomerGeneralSectionProps = {
   customer: HttpTypes.AdminCustomer
@@ -131,6 +132,32 @@ export const CustomerGeneralSection = ({
         <Text size="small" leading="compact">
           {customer.phone || "-"}
         </Text>
+      </div>
+      <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
+        <Text size="small" leading="compact" weight="plus">
+          {t("customers.fields.orderCount")}
+        </Text>
+        <Text size="small" leading="compact">
+          {customer.order_count ?? 0}
+        </Text>
+      </div>
+      <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
+        <Text size="small" leading="compact" weight="plus">
+          {t("customers.fields.lifetimeValue")}
+        </Text>
+        <div className="flex flex-col">
+          {customer.lifetime_value?.length ? (
+            customer.lifetime_value.map(({ currency_code, amount }) => (
+              <Text key={currency_code} size="small" leading="compact">
+                {getStylizedAmount(amount, currency_code)}
+              </Text>
+            ))
+          ) : (
+            <Text size="small" leading="compact">
+              -
+            </Text>
+          )}
+        </div>
       </div>
     </Container>
   )
