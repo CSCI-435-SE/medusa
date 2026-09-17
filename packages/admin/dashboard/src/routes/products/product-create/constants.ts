@@ -61,7 +61,7 @@ export const ProductCreateSchema = z
   .object({
     title: z.string().min(1),
     subtitle: z.string().optional(),
-    handle: z.string().optional(),
+    handle: z.string().min(1),
     description: z.string().optional(),
     discountable: z.boolean(),
     type_id: z.string().optional(),
