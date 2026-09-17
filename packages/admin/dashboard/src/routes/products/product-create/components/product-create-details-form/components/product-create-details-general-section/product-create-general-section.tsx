@@ -61,10 +61,7 @@ export const ProductCreateGeneralSection = ({
             render={({ field }) => {
               return (
                 <Form.Item>
-                  <Form.Label
-                    tooltip={t("products.fields.handle.tooltip")}
-                    optional
-                  >
+                  <Form.Label tooltip={t("products.fields.handle.tooltip")}>
                     {t("fields.handle")}
                   </Form.Label>
                   <Form.Control>
