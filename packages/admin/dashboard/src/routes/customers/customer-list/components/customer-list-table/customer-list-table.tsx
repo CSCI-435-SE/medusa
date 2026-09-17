@@ -92,7 +92,7 @@ export const CustomerListTable = () => {
   )
 }
 
-const CustomerActions = ({
+export const CustomerActions = ({
   customer,
 }: {
   customer: HttpTypes.AdminCustomer
