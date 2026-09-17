@@ -1,5 +1,5 @@
-import { PencilSquare } from "@medusajs/icons"
-import { Button, Container, Heading } from "@medusajs/ui"
+import { PencilSquare, Trash } from "@medusajs/icons"
+import { Button, Container, Heading, toast, usePrompt } from "@medusajs/ui"
 import { keepPreviousData } from "@tanstack/react-query"
 import { createColumnHelper } from "@tanstack/react-table"
 import { useMemo } from "react"
@@ -13,7 +13,10 @@ import {
 } from "../../../../../components/common/action-menu"
 import { PermissionGuard } from "../../../../../components/common/permission-guard"
 import { _DataTable } from "../../../../../components/table/data-table"
-import { useCustomers } from "../../../../../hooks/api/customers"
+import {
+  useCustomers,
+  useDeleteCustomer,
+} from "../../../../../hooks/api/customers"
 import { useCustomerTableColumns } from "../../../../../hooks/table/columns/use-customer-table-columns"
 import { useCustomerTableFilters } from "../../../../../hooks/table/filters/use-customer-table-filters"
 import { useCustomerTableQuery } from "../../../../../hooks/table/query/use-customer-table-query"
@@ -96,6 +99,39 @@ const CustomerActions = ({
 }) => {
   const { t } = useTranslation()
   const { can } = usePermissions()
+  const prompt = usePrompt()
+
+  const { mutateAsync } = useDeleteCustomer(customer.id)
+
+  const handleDelete = async () => {
+    const res = await prompt({
+      title: t("customers.delete.title"),
+      description: t("customers.delete.description", {
+        email: customer.email,
+      }),
+      verificationInstruction: t("general.typeToConfirm"),
+      verificationText: customer.email,
+      confirmText: t("actions.delete"),
+      cancelText: t("actions.cancel"),
+    })
+
+    if (!res) {
+      return
+    }
+
+    await mutateAsync(undefined, {
+      onSuccess: () => {
+        toast.success(
+          t("customers.delete.successToast", {
+            email: customer.email,
+          })
+        )
+      },
+      onError: (error) => {
+        toast.error(error.message)
+      },
+    })
+  }
 
   const actions: Action[] = []
 
@@ -104,6 +140,14 @@ const CustomerActions = ({
       icon: <PencilSquare />,
       label: t("actions.edit"),
       to: `/customers/${customer.id}/edit`,
+    })
+  }
+
+  if (can("customer", "delete")) {
+    actions.push({
+      icon: <Trash />,
+      label: t("actions.delete"),
+      onClick: handleDelete,
     })
   }
 
