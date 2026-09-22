@@ -99,11 +99,18 @@ export const useInventoryTableColumns = () => {
             return <PlaceholderCell />
           }
 
-          return (
-            <div className="flex size-full items-center overflow-hidden">
-              <span className="truncate">{quantity}</span>
-            </div>
-          )
+              const isLowStock = quantity !== null && quantity < 10
+
+              return (
+                <div className="flex size-full items-center overflow-hidden gap-x-2">
+                  <span className="truncate">{quantity}</span>
+                  {isLowStock && (
+                    <span className="text-ui-fg-error text-xs font-medium">
+                      Low stock
+                    </span>
+                  )}
+                </div>
+              )
         },
       }),
       columnHelper.display({
