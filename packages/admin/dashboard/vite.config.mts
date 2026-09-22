@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
   const sources = MEDUSA_PROJECT ? [MEDUSA_PROJECT] : []
 
   return {
+    resolve: {
+       dedupe: ["react", "react-dom"],
+    },	
     plugins: [
       inspect(),
       react(),
