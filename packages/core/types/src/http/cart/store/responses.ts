@@ -1,5 +1,6 @@
 import { DeleteResponseWithParent } from "../../common"
 import { StoreOrder } from "../../order"
+import { StoreProduct } from "../../product"
 import { StoreCart } from "./entities"
 
 export interface StoreCartResponse {
@@ -7,6 +8,17 @@ export interface StoreCartResponse {
    * The cart's details.
    */
   cart: StoreCart
+}
+
+export interface StoreCartSuggestedProductResponse {
+  /**
+   * The product suggested for the cart: the best-selling eligible product, or
+   * the first eligible product in the catalog if no best-seller is eligible.
+   * It's `null` only if no product in the catalog is eligible.
+   * Its variants are limited to those that can be added to the cart, and
+   * include their calculated prices.
+   */
+  suggested_product: StoreProduct | null
 }
 
 export type StoreCompleteCartResponse =
