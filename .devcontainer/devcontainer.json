@@ -1,0 +1,22 @@
+{
+  "name": "medusa",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/medusa",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [9000, 5173, 6006],
+  "postCreateCommand": "corepack enable && yarn install && yarn build",
+  "remoteEnv": {
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_USERNAME": "postgres",
+    "DB_PASSWORD": "postgres"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  }
+}
