@@ -6,17 +6,25 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "forwardPorts": [9000, 5173, 6006],
-  "postCreateCommand": "corepack enable && yarn install && yarn build",
+  "forwardPorts": [9000, 8000, 5173, 6006],
+  "postCreateCommand": "git config --global --add safe.directory /workspaces/medusa && sudo chown node:node node_modules /home/node/.claude && sudo corepack enable && yarn install && yarn build",
   "remoteEnv": {
-    "DB_HOST": "postgres",
-    "DB_PORT": "5432",
+    "DB_HOST": "localhost",
+    "DB_PORT": "5433",
     "DB_USERNAME": "postgres",
-    "DB_PASSWORD": "postgres"
+    "DB_PASSWORD": "postgres",
+    "YARN_NM_MODE": "classic",
+    "NODE_OPTIONS": "--dns-result-order=ipv4first"
   },
   "customizations": {
     "vscode": {
-      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-ossdata.vscode-pgsql",
+        "SpecStory.specstory-vscode",
+        "Anthropic.claude-code"
+      ]
     }
   }
 }
