@@ -141,3 +141,23 @@ export const retrieveTransformQueryConfig = {
   defaults: defaultStoreCartFields,
   isList: false,
 }
+
+export const defaultStoreSuggestedProductFields = [
+  "id",
+  "title",
+  "subtitle",
+  "description",
+  "handle",
+  "thumbnail",
+  "*options",
+  "*options.values",
+  "*images",
+  "*variants",
+  "*variants.options",
+  "variants.calculated_price.*",
+]
+
+export const retrieveSuggestedProductTransformQueryConfig = {
+  defaults: defaultStoreSuggestedProductFields,
+  isList: false,
+}
