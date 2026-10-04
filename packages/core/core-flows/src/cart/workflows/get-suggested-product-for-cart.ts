@@ -4,9 +4,11 @@ import {
   WorkflowData,
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk"
+import { filterObjectByKeys } from "@medusajs/framework/utils"
 import { useQueryGraphStep } from "../../common"
 import { getBestSellingProductIdsStep } from "../steps/get-best-selling-product-ids"
 import { selectSuggestedProductStep } from "../steps/select-suggested-product"
+import { cartFieldsForPricingContext } from "../utils/fields"
 
 /**
  * The details of the cart to get a suggested product for.
@@ -23,11 +25,9 @@ export interface GetSuggestedProductForCartWorkflowInput {
 }
 
 const cartFields = [
-  "id",
-  "sales_channel_id",
-  "region_id",
-  "currency_code",
-  "customer.groups.id",
+  ...cartFieldsForPricingContext,
+  "customer_id",
+  "region.*",
   "items.product_id",
 ]
 
@@ -93,10 +93,25 @@ export const getSuggestedProductForCartWorkflow = createWorkflow(
 
     const productIds = getBestSellingProductIdsStep(rankingInput)
 
+    // Built the same way as when an item is added to the cart, so the
+    // suggested prices match what the cart charges for one unit.
+    const pricingContext = transform({ cart }, ({ cart }) => {
+      return {
+        ...filterObjectByKeys(cart, cartFieldsForPricingContext),
+        currency_code: cart.currency_code,
+        region_id: cart.region_id,
+        region: cart.region,
+        customer_id: cart.customer_id,
+        customer: cart.customer,
+        quantity: 1,
+      }
+    })
+
     const product = selectSuggestedProductStep({
       product_ids: productIds,
       exclude_product_ids: cartProductIds,
-      cart,
+      sales_channel_id: cart.sales_channel_id,
+      pricing_context: pricingContext,
       fields: input.fields,
     })
 

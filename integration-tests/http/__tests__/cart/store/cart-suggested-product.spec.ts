@@ -1,5 +1,11 @@
 import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
-import { Modules, OrderStatus, ProductStatus } from "@medusajs/utils"
+import {
+  Modules,
+  OrderStatus,
+  PriceListStatus,
+  PriceListType,
+  ProductStatus,
+} from "@medusajs/utils"
 import {
   adminHeaders,
   createAdminUser,
@@ -243,6 +249,49 @@ medusaIntegrationTestRunner({
         expect(response.data.cart.items).toEqual([
           expect.objectContaining({ product_id: bestSeller.id }),
         ])
+      })
+
+      it("should price variants with the same context as the cart", async () => {
+        const bestSeller = await createProduct("best-seller")
+        await createOrder(bestSeller, 1)
+
+        // Only applies in the cart's sales channel, which is part of the
+        // cart's pricing context but not the region and currency alone
+        await api.post(
+          `/admin/price-lists`,
+          {
+            title: "Webshop prices",
+            description: "Prices for the webshop sales channel",
+            status: PriceListStatus.ACTIVE,
+            type: PriceListType.OVERRIDE,
+            prices: [
+              {
+                amount: 900,
+                currency_code: "usd",
+                variant_id: bestSeller.variants[0].id,
+              },
+            ],
+            rules: { sales_channel_id: [salesChannel.id] },
+          },
+          adminHeaders
+        )
+
+        const cart = await createCart()
+        const suggestedProduct = await getSuggestedProduct(cart.id)
+
+        expect(
+          suggestedProduct.variants[0].calculated_price.calculated_amount
+        ).toEqual(900)
+
+        const response = await api.post(
+          `/store/carts/${cart.id}/line-items`,
+          { variant_id: suggestedProduct.variants[0].id, quantity: 1 },
+          storeHeaders
+        )
+
+        expect(response.data.cart.items[0].unit_price).toEqual(
+          suggestedProduct.variants[0].calculated_price.calculated_amount
+        )
       })
 
       it("should exclude products already in the cart", async () => {

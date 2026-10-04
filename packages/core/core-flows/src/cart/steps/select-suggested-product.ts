@@ -1,6 +1,4 @@
 import {
-  CartDTO,
-  MedusaPricingContext,
   ProductDTO,
   ProductVariantDTO,
   RemoteQueryFunction,
@@ -31,13 +29,16 @@ export interface SelectSuggestedProductStepInput {
    */
   exclude_product_ids?: string[]
   /**
-   * The cart to select a product for. Its sales channel scopes product
-   * eligibility and stock, and its region, currency, and customer set the
-   * pricing context.
+   * The ID of the cart's sales channel. Only products available in this sales
+   * channel, with stock at its locations, are selected. If not set, no product
+   * is selected.
    */
-  cart: Pick<CartDTO, "sales_channel_id" | "region_id" | "currency_code"> & {
-    customer?: { groups?: { id: string }[] } | null
-  }
+  sales_channel_id?: string | null
+  /**
+   * The context to calculate variant prices with. Pass the same context the
+   * cart uses for pricing, so the suggested prices match what the cart charges.
+   */
+  pricing_context: Record<string, unknown>
   /**
    * The product fields to retrieve.
    */
@@ -81,7 +82,7 @@ async function findFirstEligibleProduct(
     fields,
   }: {
     salesChannelId: string
-    pricingContext: MedusaPricingContext
+    pricingContext: Record<string, unknown>
     fields: string[]
   }
 ): Promise<ProductDTO | null> {
@@ -182,8 +183,8 @@ export const selectSuggestedProductStepId = "select-suggested-product"
  * const product = selectSuggestedProductStep({
  *   product_ids: ["prod_123", "prod_456"],
  *   exclude_product_ids: ["prod_789"],
- *   cart: {
- *     sales_channel_id: "sc_123",
+ *   sales_channel_id: "sc_123",
+ *   pricing_context: {
  *     region_id: "reg_123",
  *     currency_code: "usd",
  *   },
@@ -193,7 +194,7 @@ export const selectSuggestedProductStepId = "select-suggested-product"
 export const selectSuggestedProductStep = createStep(
   selectSuggestedProductStepId,
   async (data: SelectSuggestedProductStepInput, { container }) => {
-    const salesChannelId = data.cart.sales_channel_id
+    const salesChannelId = data.sales_channel_id
 
     if (!salesChannelId) {
       return new StepResponse(null)
@@ -201,18 +202,11 @@ export const selectSuggestedProductStep = createStep(
 
     const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
-    const pricingContext: MedusaPricingContext = {
-      region_id: data.cart.region_id,
-      currency_code: data.cart.currency_code,
+    const options = {
+      salesChannelId,
+      pricingContext: data.pricing_context,
+      fields: data.fields,
     }
-
-    if (data.cart.customer?.groups) {
-      pricingContext.customer = {
-        groups: data.cart.customer.groups.map((group) => ({ id: group.id })),
-      }
-    }
-
-    const options = { salesChannelId, pricingContext, fields: data.fields }
     const excludedIds = new Set(data.exclude_product_ids ?? [])
 
     const preferredProduct = await findFirstEligibleProduct(
