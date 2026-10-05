@@ -172,8 +172,10 @@ export const isQualifyingOrder = (order: SalesSummaryOrder): boolean => {
  * The order summary tracks these two things separately:
  *
  * - `current_order_total`: what the order is worth. It goes down when items
- *   are returned or the order is edited, but NOT when money is refunded
- *   directly from the payment (e.g. a goodwill refund with no return).
+ *   are returned or the order is edited, but a refund made directly from the
+ *   payment (e.g. a goodwill refund with no return) isn't guaranteed to lower
+ *   it: that only happens when the refund workflow also adds a refund credit
+ *   line to the order, so it can't be relied on to reflect refunds.
  * - `transaction_total`: money paid minus money refunded. It goes down on
  *   every refund, but it doesn't change when a return is requested and the
  *   refund hasn't been issued yet.
