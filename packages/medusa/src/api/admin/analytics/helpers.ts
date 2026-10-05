@@ -41,6 +41,10 @@ export const EXCLUDED_ORDER_STATUSES: string[] = [
  *
  * Fully `refunded` orders are excluded, as are orders that are only
  * authorized / awaiting / not paid, since no money has been collected yet.
+ *
+ * Note: this list only decides whether an order is counted at all. How much
+ * of a partially captured or partially refunded order counts as revenue is
+ * decided by `getOrderRevenue` below.
  */
 export const PAID_PAYMENT_STATUSES: string[] = [
   "captured",
@@ -86,7 +90,13 @@ export type SalesSummaryOrder = {
   status?: string | null
   is_draft_order?: boolean | null
   currency_code?: string | null
-  summary?: { current_order_total?: BigNumberValue | null } | null
+  summary?: {
+    current_order_total?: BigNumberValue | null
+    // Net money kept for the order: everything paid minus everything
+    // refunded. Lives in the same stored `summary` JSON, so the route
+    // doesn't need to request any extra fields.
+    transaction_total?: BigNumberValue | null
+  } | null
   payment_collections?: {
     status?: string | null
     amount?: BigNumberValue | null
@@ -107,7 +117,7 @@ export type SalesSummaryOrder = {
  * feeds each batch into `addOrdersToSalesSummary`.
  */
 export type SalesSummaryAccumulator = {
-  /** Sum of `summary.current_order_total` for qualifying orders. */
+  /** Sum of `getOrderRevenue` for qualifying orders. */
   revenue: ReturnType<typeof MathBN.convert>
   /** Number of qualifying orders. */
   orderCount: number
@@ -156,6 +166,51 @@ export const isQualifyingOrder = (order: SalesSummaryOrder): boolean => {
 }
 
 /**
+ * Returns how much of an order counts as revenue: the smaller of what the
+ * order is worth and what the merchant actually kept.
+ *
+ * The order summary tracks these two things separately:
+ *
+ * - `current_order_total`: what the order is worth. It goes down when items
+ *   are returned or the order is edited, but NOT when money is refunded
+ *   directly from the payment (e.g. a goodwill refund with no return).
+ * - `transaction_total`: money paid minus money refunded. It goes down on
+ *   every refund, but it doesn't change when a return is requested and the
+ *   refund hasn't been issued yet.
+ *
+ * Taking the minimum handles both cases without counting anything twice:
+ *
+ * | Scenario ($100 order)           | current | transaction | counted |
+ * | ------------------------------- | ------- | ----------- | ------- |
+ * | Fully paid                      | 100     | 100         | 100     |
+ * | $30 refund, no return           | 100     | 70          | 70      |
+ * | $30 item returned and refunded  | 70      | 70          | 70      |
+ * | $30 item returned, not refunded | 70      | 100         | 70      |
+ * | Only $60 captured so far        | 100     | 60          | 60      |
+ *
+ * Simply subtracting the refunded amount from `current_order_total` would be
+ * wrong: for a returned and refunded item the total has already dropped, so
+ * the refund would be taken off a second time (100 - 30 - 30 = 40).
+ */
+export const getOrderRevenue = (
+  order: SalesSummaryOrder
+): ReturnType<typeof MathBN.convert> => {
+  // A missing summary is treated as 0 rather than failing, so one bad order
+  // can't break the whole dashboard.
+  const currentTotal = order.summary?.current_order_total ?? 0
+
+  // Fall back to the order total when `transaction_total` is missing, which
+  // keeps the old behavior instead of silently counting the order as 0.
+  const transactionTotal = order.summary?.transaction_total ?? currentTotal
+
+  const revenue = MathBN.min(currentTotal, transactionTotal)
+
+  // Safety net: an order should never reduce revenue (e.g. if more was
+  // refunded than captured because of bad data), so clamp at 0.
+  return MathBN.max(revenue, 0)
+}
+
+/**
  * Adds a batch of orders to the running totals. Orders that don't qualify
  * (see `isQualifyingOrder`) or that are in a different currency than the one
  * being reported are skipped.
@@ -182,12 +237,11 @@ export const addOrdersToSalesSummary = (
 
     accumulator.orderCount += 1
 
-    // `current_order_total` is the order's total after any edits, returns,
-    // claims or exchanges, which makes it the best "what was this sale worth"
-    // figure. A missing summary is treated as 0 rather than failing.
+    // Count the order's value net of refunds (see `getOrderRevenue`), so a
+    // partially refunded order no longer adds its full total.
     accumulator.revenue = MathBN.add(
       accumulator.revenue,
-      order.summary?.current_order_total ?? 0
+      getOrderRevenue(order)
     )
 
     for (const item of order.items ?? []) {

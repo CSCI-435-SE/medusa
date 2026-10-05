@@ -2,6 +2,7 @@ import {
   addOrdersToSalesSummary,
   createSalesSummaryAccumulator,
   finalizeSalesSummary,
+  getOrderRevenue,
   isQualifyingOrder,
   SalesSummaryOrder,
 } from "../helpers"
@@ -18,7 +19,8 @@ const buildOrder = (
   status: "pending",
   is_draft_order: false,
   currency_code: "usd",
-  summary: { current_order_total: 100 },
+  // Fully paid and nothing refunded, so both totals are 100.
+  summary: { current_order_total: 100, transaction_total: 100 },
   payment_collections: [
     {
       status: "completed",
@@ -136,6 +138,62 @@ describe("sales summary helpers", () => {
     })
   })
 
+  // Each test here is one row of the scenario table in the `getOrderRevenue`
+  // doc comment. `current` = current_order_total (what the order is worth),
+  // `transaction` = transaction_total (paid minus refunded).
+  describe("getOrderRevenue", () => {
+    const revenueOf = (current: number, transaction: number) =>
+      getOrderRevenue(
+        buildOrder({
+          summary: {
+            current_order_total: current,
+            transaction_total: transaction,
+          },
+        })
+      ).toNumber()
+
+    it("should count the full total of a fully paid order", () => {
+      expect(revenueOf(100, 100)).toBe(100)
+    })
+
+    it("should subtract a refund that wasn't tied to a return", () => {
+      // The bug this guards against: a $30 refund leaves the order total at
+      // 100, and we used to count all 100 as revenue.
+      expect(revenueOf(100, 70)).toBe(70)
+    })
+
+    it("should not subtract a refund twice when an item was returned", () => {
+      // The return already lowered the total to 70, and the refund lowered
+      // the transactions to 70. Revenue is 70, not 100 - 30 - 30 = 40.
+      expect(revenueOf(70, 70)).toBe(70)
+    })
+
+    it("should not count money still owed back for a returned item", () => {
+      // The item was returned but the refund hasn't been issued yet.
+      expect(revenueOf(70, 100)).toBe(70)
+    })
+
+    it("should only count the captured part of a partially captured order", () => {
+      expect(revenueOf(100, 60)).toBe(60)
+    })
+
+    it("should never return a negative amount", () => {
+      // More refunded than paid shouldn't happen, but bad data shouldn't be
+      // able to lower the store's total revenue.
+      expect(revenueOf(100, -20)).toBe(0)
+    })
+
+    it("should fall back to the order total when transaction_total is missing", () => {
+      const order = buildOrder({ summary: { current_order_total: 100 } })
+
+      expect(getOrderRevenue(order).toNumber()).toBe(100)
+    })
+
+    it("should treat a missing summary as zero", () => {
+      expect(getOrderRevenue(buildOrder({ summary: null })).toNumber()).toBe(0)
+    })
+  })
+
   describe("sales summary aggregation", () => {
     it("should return a zero state when there are no orders", () => {
       expect(summarize([])).toEqual({
@@ -167,6 +225,30 @@ describe("sales summary helpers", () => {
 
       expect(summary.order_count).toBe(2)
       expect(summary.total_revenue).toBe(150.25)
+    })
+
+    it("should count partially refunded orders net of the refund", () => {
+      const summary = summarize([
+        buildOrder({ id: "o1" }),
+        // $100 order with a $30 refund and no return: only $70 was kept.
+        buildOrder({
+          id: "o2",
+          summary: { current_order_total: 100, transaction_total: 70 },
+          payment_collections: [
+            {
+              status: "completed",
+              amount: 100,
+              captured_amount: 100,
+              refunded_amount: 30,
+            },
+          ],
+        }),
+      ])
+
+      // The refunded order still counts as a sale...
+      expect(summary.order_count).toBe(2)
+      // ...but only contributes what the merchant kept (100 + 70).
+      expect(summary.total_revenue).toBe(170)
     })
 
     it("should not lose precision when summing decimal amounts", () => {

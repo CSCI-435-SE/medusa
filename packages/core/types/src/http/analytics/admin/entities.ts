@@ -51,8 +51,10 @@ export interface AdminSalesSummary {
    */
   currency_code: string | null
   /**
-   * The sum of the current totals of all qualifying orders, in the major
-   * unit of the currency (for example, `10.5` means $10.50).
+   * The revenue from all qualifying orders, net of refunds, in the major
+   * unit of the currency (for example, `10.5` means $10.50). Each order
+   * counts the smaller of its current total and the amount paid minus the
+   * amount refunded, so partial refunds and returns lower the revenue.
    *
    * @example
    * 1250.5

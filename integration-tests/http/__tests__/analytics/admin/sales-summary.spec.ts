@@ -119,6 +119,32 @@ medusaIntegrationTestRunner({
         })
       })
 
+      it("should count partially refunded orders net of the refund", async () => {
+        const { order } = await seedOrder()
+        await capturePayment(order)
+
+        // Refund part of the payment directly, without a return. This is the
+        // case that used to count the order's full total as revenue.
+        const payment = order.payment_collections[0].payments[0]
+        const refundAmount = 1
+
+        await api.post(
+          `/admin/payments/${payment.id}/refund`,
+          { amount: refundAmount },
+          adminHeaders
+        )
+
+        const summary = await getSalesSummary()
+
+        // The order is still a sale...
+        expect(summary.order_count).toEqual(1)
+        // ...but revenue is reduced by exactly the refunded amount.
+        // `toBeCloseTo` because the total includes tax and may have decimals.
+        expect(summary.total_revenue).toBeCloseTo(
+          order.summary.current_order_total - refundAmount
+        )
+      })
+
       it("should not count canceled orders even if they were paid", async () => {
         const { order } = await seedOrder()
         await capturePayment(order)
