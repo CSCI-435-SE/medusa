@@ -31,7 +31,9 @@ export const Login = () => {
     ((token: string) => void | Promise<void>) | null
   >(null)
 
-  const from = location.state?.from?.pathname || "/orders"
+  // After logging in, send the admin back to the page they tried to open, or
+  // to the home page (which shows the sales overview) by default.
+  const from = location.state?.from?.pathname || "/"
 
   const form = useForm<z.infer<typeof LoginSchema>>({
     resolver: zodResolver(LoginSchema),

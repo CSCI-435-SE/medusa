@@ -707,6 +707,58 @@ export class Store {
       )
     },
     /**
+     * This method retrieves a single product to suggest for a cart, such as an upsell
+     * during checkout. It sends a request to the Get Suggested Product API route.
+     *
+     * The suggested product is the best-selling product in the cart's sales channel that
+     * isn't already in the cart and has a variant that's in stock and priced in the cart's
+     * currency. If no best-seller is eligible, such as when the store has no sales yet, the
+     * first eligible product in the catalog is suggested instead. Its variants are limited to
+     * those that can be added to the cart, so you can add one with {@link createLineItem}
+     * without retrieving the product again.
+     *
+     * @param id - The cart's ID.
+     * @param query - Configure the fields to retrieve in the suggested product.
+     * @param headers - Headers to pass in the request.
+     * @returns The suggested product, or `null` if no product in the catalog is eligible.
+     *
+     * @example
+     * To retrieve the suggested product for a cart:
+     *
+     * ```ts
+     * sdk.store.cart.retrieveSuggestedProduct("cart_123")
+     * .then(({ suggested_product }) => {
+     *   console.log(suggested_product)
+     * })
+     * ```
+     *
+     * To specify the fields and relations to retrieve:
+     *
+     * ```ts
+     * sdk.store.cart.retrieveSuggestedProduct("cart_123", {
+     *   fields: "id,title,*variants"
+     * })
+     * .then(({ suggested_product }) => {
+     *   console.log(suggested_product)
+     * })
+     * ```
+     *
+     * Learn more about the `fields` property in the [API reference](https://docs.medusajs.com/api/store#select-fields-and-relations).
+     */
+    retrieveSuggestedProduct: async (
+      id: string,
+      query?: SelectParams,
+      headers?: ClientHeaders
+    ) => {
+      return this.client.fetch<HttpTypes.StoreCartSuggestedProductResponse>(
+        `/store/carts/${id}/suggested-product`,
+        {
+          headers,
+          query,
+        }
+      )
+    },
+    /**
      * This methods adds a product variant to the cart as a line item. It sends a request to the
      * [Add Line Item](https://docs.medusajs.com/api/store#carts_postcartsidlineitems) API route.
      *
