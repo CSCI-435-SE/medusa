@@ -1755,6 +1755,86 @@
       "required": ["availableIn"],
       "additionalProperties": false
     },
+    "home": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "salesSummary": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "totalRevenue": {
+              "type": "string"
+            },
+            "orderCount": {
+              "type": "string"
+            },
+            "topProducts": {
+              "type": "string"
+            },
+            "unitsSold_zero": {
+              "type": "string"
+            },
+            "unitsSold_one": {
+              "type": "string"
+            },
+            "unitsSold_two": {
+              "type": "string"
+            },
+            "unitsSold_few": {
+              "type": "string"
+            },
+            "unitsSold_many": {
+              "type": "string"
+            },
+            "unitsSold_other": {
+              "type": "string"
+            },
+            "noOrdersHint": {
+              "type": "string"
+            },
+            "noSalesTitle": {
+              "type": "string"
+            },
+            "noSalesMessage": {
+              "type": "string"
+            },
+            "noCurrencyHint": {
+              "type": "string"
+            },
+            "errorTitle": {
+              "type": "string"
+            },
+            "errorMessage": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "description",
+            "totalRevenue",
+            "orderCount",
+            "topProducts",
+            "noOrdersHint",
+            "noSalesTitle",
+            "noSalesMessage",
+            "noCurrencyHint",
+            "errorTitle",
+            "errorMessage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["domain", "salesSummary"],
+      "additionalProperties": false
+    },
     "products": {
       "type": "object",
       "properties": {
@@ -14297,6 +14377,7 @@
     "addresses",
     "email",
     "transferOwnership",
+    "home",
     "sales_channels",
     "products",
     "collections",

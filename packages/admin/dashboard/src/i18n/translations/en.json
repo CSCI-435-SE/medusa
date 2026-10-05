@@ -438,6 +438,24 @@
   "sales_channels": {
     "availableIn": "Available in <0>{{x}}</0> of <1>{{y}}</1> sales channels"
   },
+  "home": {
+    "domain": "Home",
+    "salesSummary": {
+      "title": "Sales overview",
+      "description": "All-time totals from paid orders in your store's default currency.",
+      "totalRevenue": "Total revenue",
+      "orderCount": "Orders",
+      "topProducts": "Top selling products",
+      "unitsSold_one": "{{count}} unit sold",
+      "unitsSold_other": "{{count}} units sold",
+      "noOrdersHint": "No paid orders yet",
+      "noSalesTitle": "No sales yet",
+      "noSalesMessage": "Your best selling products will appear here once your store has paid orders.",
+      "noCurrencyHint": "Set a default currency in your store settings to track revenue.",
+      "errorTitle": "Sales overview unavailable",
+      "errorMessage": "We couldn't load your sales data. Try refreshing the page."
+    }
+  },
   "products": {
     "domain": "Products",
     "list": {
