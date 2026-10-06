@@ -33,6 +33,8 @@ import { addOrderTransactionStep } from "../../order/steps/add-order-transaction
 import { createOrdersStep } from "../../order/steps/create-orders"
 import { authorizePaymentSessionStep } from "../../payment/steps/authorize-payment-session"
 import { registerUsageStep } from "../../promotion/steps/register-usage"
+import { createSubscriptionsFromCartStep } from "../../subscription/steps/create-subscriptions-from-cart"
+import { validateSubscriptionItemsStep } from "../../subscription/steps/validate-subscription-items"
 import {
   updateCartsStep,
   validateCartItemsStep,
@@ -412,6 +414,11 @@ export const completeCartWorkflow = createWorkflow(
         shippingOptions: shippingOptionsData.data,
       })
 
+      validateSubscriptionItemsStep({
+        items: cartData.data.items,
+        customer: cartData.data.customer,
+      })
+
       const { variants, sales_channel_id } = transform(
         { cart: cartData.data },
         (data) => {
@@ -692,6 +699,12 @@ export const completeCartWorkflow = createWorkflow(
       )
 
       addOrderTransactionStep(orderTransactions)
+
+      createSubscriptionsFromCartStep({
+        cart: cartData.data,
+        order_id: createdOrder.id,
+        payment,
+      })
 
       /**
        * @ignore
