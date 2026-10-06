@@ -241,6 +241,17 @@ export const ModulesDefinition: {
       scope: MODULE_SCOPE.INTERNAL,
     },
   },
+  [Modules.SUBSCRIPTION]: {
+    key: Modules.SUBSCRIPTION,
+    defaultPackage: false,
+    label: upperCaseFirst(Modules.SUBSCRIPTION),
+    isRequired: false,
+    isQueryable: true,
+    dependencies: [ContainerRegistrationKeys.LOGGER, Modules.EVENT_BUS],
+    defaultModuleDeclaration: {
+      scope: MODULE_SCOPE.INTERNAL,
+    },
+  },
   [Modules.STORE]: {
     key: Modules.STORE,
     defaultPackage: false,
