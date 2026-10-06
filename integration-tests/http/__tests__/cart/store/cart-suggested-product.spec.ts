@@ -650,6 +650,21 @@ medusaIntegrationTestRunner({
         expect((await getSuggestedProduct(usCart.id)).id).toEqual(domestic.id)
       })
 
+      it("should match delivery zones regardless of the country code's case", async () => {
+        const upperCaseProfile = await createShippingProfile("upper-case", {
+          countryCode: "US",
+        })
+        const upperCaseZone = await createProduct("upper-case-zone", {
+          shippingProfileId: upperCaseProfile.id,
+        })
+        await createOrder(upperCaseZone, 5)
+
+        const cart = await createCart()
+        const suggestedProduct = await getSuggestedProduct(cart.id)
+
+        expect(suggestedProduct.id).toEqual(upperCaseZone.id)
+      })
+
       it("should skip products whose shipping options have no price in the cart's currency", async () => {
         const euroProfile = await createShippingProfile("euro", {
           currencyCode: "eur",
@@ -909,6 +924,31 @@ medusaIntegrationTestRunner({
         expect(response.status).toEqual(200)
         expect(response.data.suggested_product.title).toEqual("best-seller")
         expect(response.data.suggested_product.handle).toBeUndefined()
+      })
+
+      it("should only return the shipping fields used for eligibility when requested", async () => {
+        const bestSeller = await createProduct("best-seller")
+        await createOrder(bestSeller, 1)
+
+        const cart = await createCart()
+        const suggestedProduct = await getSuggestedProduct(cart.id)
+
+        expect(suggestedProduct.shipping_profile).toBeUndefined()
+        expect(suggestedProduct.variants[0].inventory_items).toBeUndefined()
+
+        const response = await api.get(
+          `/store/carts/${cart.id}/suggested-product?fields=id,shipping_profile.id,variants.inventory_items.inventory_item_id`,
+          storeHeaders
+        )
+
+        expect(response.data.suggested_product.shipping_profile).toEqual(
+          expect.objectContaining({ id: shippingProfile.id })
+        )
+        expect(
+          response.data.suggested_product.variants[0].inventory_items
+        ).toEqual([
+          expect.objectContaining({ inventory_item_id: expect.any(String) }),
+        ])
       })
 
       it("should return 404 when the cart doesn't exist", async () => {

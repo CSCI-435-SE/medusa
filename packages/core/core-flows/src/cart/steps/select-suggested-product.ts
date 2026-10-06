@@ -108,6 +108,14 @@ type EligibilityOptions = {
   shippingAddress?: SelectSuggestedProductStepInput["shipping_address"]
   regionCountryCodes: string[]
   fields: string[]
+  /**
+   * Shipping lookups kept across product batches, so they're only made once
+   * per shipping profile.
+   */
+  shippingCache: {
+    fulfillmentSetIds?: string[]
+    shippableByProfileId: Map<string, boolean>
+  }
 }
 
 /**
@@ -121,33 +129,63 @@ async function getShippableProfileIds(
   query: Query,
   fulfillmentModule: IFulfillmentModuleService,
   profileIds: string[],
+  options: EligibilityOptions
+): Promise<Set<string>> {
+  const { shippableByProfileId } = options.shippingCache
+
+  const uncheckedProfileIds = profileIds.filter(
+    (id) => !shippableByProfileId.has(id)
+  )
+
+  if (uncheckedProfileIds.length) {
+    const shippableIds = await findShippableProfileIds(
+      query,
+      fulfillmentModule,
+      uncheckedProfileIds,
+      options
+    )
+
+    uncheckedProfileIds.forEach((id) => {
+      shippableByProfileId.set(id, shippableIds.has(id))
+    })
+  }
+
+  return new Set(profileIds.filter((id) => shippableByProfileId.get(id)))
+}
+
+async function findShippableProfileIds(
+  query: Query,
+  fulfillmentModule: IFulfillmentModuleService,
+  profileIds: string[],
   {
     salesChannelId,
     pricingContext,
     shippingAddress,
     regionCountryCodes,
+    shippingCache,
   }: EligibilityOptions
 ): Promise<Set<string>> {
-  if (
-    !profileIds.length ||
-    (!shippingAddress?.country_code && !regionCountryCodes.length)
-  ) {
+  if (!shippingAddress?.country_code && !regionCountryCodes.length) {
     return new Set()
   }
 
-  const { data: salesChannels } = await query.graph({
-    entity: "sales_channel",
-    fields: ["stock_locations.fulfillment_sets.id"],
-    filters: { id: salesChannelId },
-  })
+  if (!shippingCache.fulfillmentSetIds) {
+    const { data: salesChannels } = await query.graph({
+      entity: "sales_channel",
+      fields: ["stock_locations.fulfillment_sets.id"],
+      filters: { id: salesChannelId },
+    })
 
-  const fulfillmentSetIds = deduplicate(
-    salesChannels
-      .flatMap((salesChannel) => salesChannel.stock_locations ?? [])
-      .flatMap((location) => location?.fulfillment_sets ?? [])
-      .map((fulfillmentSet) => fulfillmentSet?.id)
-      .filter((id): id is string => !!id)
-  )
+    shippingCache.fulfillmentSetIds = deduplicate(
+      salesChannels
+        .flatMap((salesChannel) => salesChannel.stock_locations ?? [])
+        .flatMap((location) => location?.fulfillment_sets ?? [])
+        .map((fulfillmentSet) => fulfillmentSet?.id)
+        .filter((id): id is string => !!id)
+    )
+  }
+
+  const fulfillmentSetIds = shippingCache.fulfillmentSetIds
 
   if (!fulfillmentSetIds.length) {
     return new Set()
@@ -167,7 +205,15 @@ async function getShippableProfileIds(
         }
       : {
           service_zone: {
-            geo_zones: { country_code: regionCountryCodes },
+            // Geo zones keep the country code as it was entered
+            geo_zones: {
+              country_code: deduplicate(
+                regionCountryCodes.flatMap((code) => [
+                  code.toLowerCase(),
+                  code.toUpperCase(),
+                ])
+              ),
+            },
           },
         }
 
@@ -212,6 +258,38 @@ async function getShippableProfileIds(
       )
       .map((option) => option.shipping_profile_id)
   )
+}
+
+/**
+ * Removes the fields only retrieved to check whether the product can be
+ * shipped, unless they were requested.
+ */
+function withoutShippingCheckFields(
+  product: SuggestedProduct,
+  fields: string[]
+): ProductDTO {
+  const isRequested = (path: string) =>
+    fields.some((field) => {
+      const normalized = field.replace(/^\*/, "")
+
+      return normalized === path || normalized.startsWith(`${path}.`)
+    })
+
+  const { shipping_profile, ...result } = product
+  const keepInventoryItems = isRequested("variants.inventory_items")
+
+  return {
+    ...result,
+    ...(isRequested("shipping_profile") ? { shipping_profile } : {}),
+    variants: keepInventoryItems
+      ? result.variants
+      : (result.variants ?? []).map((variant) => {
+          const { inventory_items, ...rest } =
+            variant as SuggestedProductVariant
+
+          return rest
+        }),
+  } as ProductDTO
 }
 
 /**
@@ -328,7 +406,10 @@ async function findFirstEligibleProduct(
     ).filter((variant) => canBeAdded(product, variant))
 
     if (eligibleVariants.length) {
-      return { ...product, variants: eligibleVariants } as ProductDTO
+      return withoutShippingCheckFields(
+        { ...product, variants: eligibleVariants },
+        fields
+      )
     }
   }
 
@@ -384,6 +465,7 @@ export const selectSuggestedProductStep = createStep(
       shippingAddress: data.shipping_address,
       regionCountryCodes: data.region_country_codes,
       fields: data.fields,
+      shippingCache: { shippableByProfileId: new Map() },
     }
     const excludedIds = new Set(data.exclude_product_ids ?? [])
 

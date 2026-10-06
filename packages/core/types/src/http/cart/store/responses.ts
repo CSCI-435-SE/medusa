@@ -12,10 +12,9 @@ export interface StoreCartResponse {
 
 export interface StoreCartSuggestedProductResponse {
   /**
-   * The product suggested for the cart from the categories of its products:
-   * the best-selling eligible product in those categories, or the first
-   * eligible one if none has been sold. It's `null` if no product in the
-   * cart's categories is eligible.
+   * The product suggested for the cart: the best-selling eligible product, or
+   * the first eligible product in the catalog if no best-seller is eligible.
+   * It's `null` only if no product in the catalog is eligible.
    * Its variants are limited to those that can be added to the cart, and
    * include their calculated prices.
    */

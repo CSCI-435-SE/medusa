@@ -1,6 +1,5 @@
 ---
 "@medusajs/core-flows": patch
-"@medusajs/types": patch
 "@medusajs/js-sdk": patch
 "integration-tests-http": patch
 ---
