@@ -27,6 +27,11 @@ const customPendingAuthPaymentProvider = {
   id: "pending-auth",
 }
 
+const customSavedMethodPaymentProvider = {
+  resolve: require("./dist/utils/providers/payment-saved-method").default,
+  id: "saved-method",
+}
+
 const customTaxDataProvider = {
   resolve: require("./dist/utils/providers/tax-data-provider").default,
   id: "data-provider",
@@ -58,7 +63,12 @@ const modules = {
     resolve: "@medusajs/payment",
     /** @type {import('@medusajs/payment').PaymentModuleOptions} */
     options: {
-      providers: [customPaymentProvider, customPaymentProviderAccountHolder, customPendingAuthPaymentProvider],
+      providers: [
+        customPaymentProvider,
+        customPaymentProviderAccountHolder,
+        customPendingAuthPaymentProvider,
+        customSavedMethodPaymentProvider,
+      ],
       webhook_delay: 0,
       webhook_retries: 0,
     },
