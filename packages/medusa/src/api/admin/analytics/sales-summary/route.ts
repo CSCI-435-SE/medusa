@@ -4,6 +4,8 @@ import {
 } from "@medusajs/framework/http"
 import { HttpTypes } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { resolveDateRange } from "../date-range"
+import { AdminGetSalesSummaryParamsType } from "../validators"
 import {
   addOrdersToSalesSummary,
   createSalesSummaryAccumulator,
@@ -22,9 +24,13 @@ const ORDER_BATCH_SIZE = 500
 /**
  * GET /admin/analytics/sales-summary
  *
- * Returns a snapshot of the store's sales performance for the admin dashboard
- * home page (issue #42): total revenue, number of orders, and the top three
- * products by units sold.
+ * Returns the store's sales performance for the admin dashboard home page
+ * (issue #42): total revenue, number of orders, and the top three products by
+ * units sold.
+ *
+ * The summary covers orders placed between `start_date` and `end_date` (issue
+ * #30). Without them it covers the last 7 days. Ranges are limited to 12
+ * months; see `../date-range.ts` for the rules.
  *
  * Only paid, non-draft, non-canceled orders in the store's default currency
  * are counted. See `../helpers.ts` for the exact rules.
@@ -33,9 +39,15 @@ const ORDER_BATCH_SIZE = 500
  * the dashboard caches the response for a few minutes instead.
  */
 export const GET = async (
-  req: AuthenticatedMedusaRequest,
+  req: AuthenticatedMedusaRequest<undefined, AdminGetSalesSummaryParamsType>,
   res: MedusaResponse<HttpTypes.AdminSalesSummaryResponse>
 ) => {
+  const { start, end } = resolveDateRange(req.validatedQuery)
+  const dates = {
+    start_date: start.toISOString(),
+    end_date: end.toISOString(),
+  }
+
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
   // 1. Find the store's default currency. Revenue is reported in this
@@ -62,15 +74,16 @@ export const GET = async (
   // return the zero state rather than an error.
   if (!currencyCode) {
     return res.json({
-      sales_summary: finalizeSalesSummary(accumulator, null),
+      sales_summary: { ...finalizeSalesSummary(accumulator, null), ...dates },
     })
   }
 
   // 2. Page through all candidate orders and add each batch to the running
-  //    totals. The database filters out drafts, canceled orders, and other
-  //    currencies up front so we load as few rows as possible. Payment status
-  //    can't be filtered in the database (it's derived from the payment
-  //    collections), so that check happens in `addOrdersToSalesSummary`.
+  //    totals. The database filters out drafts, canceled orders, other
+  //    currencies, and orders outside the date range up front so we load as
+  //    few rows as possible. Payment status can't be filtered in the database
+  //    (it's derived from the payment collections), so that check happens in
+  //    `addOrdersToSalesSummary`.
   let skip = 0
 
   while (true) {
@@ -81,6 +94,9 @@ export const GET = async (
         is_draft_order: false,
         status: { $nin: EXCLUDED_ORDER_STATUSES },
         currency_code: currencyCode,
+        // The order's creation time (time of purchase) decides which range
+        // it belongs to.
+        created_at: { $gte: start, $lte: end },
       },
       pagination: {
         skip,
@@ -108,6 +124,9 @@ export const GET = async (
   // 3. Convert the running totals into the response shape (sorting and
   //    trimming the top products list).
   return res.json({
-    sales_summary: finalizeSalesSummary(accumulator, currencyCode),
+    sales_summary: {
+      ...finalizeSalesSummary(accumulator, currencyCode),
+      ...dates,
+    },
   })
 }

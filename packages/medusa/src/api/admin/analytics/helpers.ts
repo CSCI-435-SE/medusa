@@ -272,7 +272,8 @@ export const addOrdersToSalesSummary = (
 }
 
 /**
- * Turns the running totals into the response shape returned by the API.
+ * Turns the running totals into the response shape returned by the API. The
+ * date range isn't known here, so the route adds `start_date` and `end_date`.
  *
  * Products are sorted by units sold (highest first). Ties are broken by title
  * so the order is stable between page loads, then the list is cut down to
@@ -281,7 +282,7 @@ export const addOrdersToSalesSummary = (
 export const finalizeSalesSummary = (
   accumulator: SalesSummaryAccumulator,
   currencyCode: string | null
-): HttpTypes.AdminSalesSummary => {
+): Omit<HttpTypes.AdminSalesSummary, "start_date" | "end_date"> => {
   const topProducts = Array.from(accumulator.unitsByProduct.entries())
     .map(([productId, { title, units }]) => ({
       product_id: productId,
