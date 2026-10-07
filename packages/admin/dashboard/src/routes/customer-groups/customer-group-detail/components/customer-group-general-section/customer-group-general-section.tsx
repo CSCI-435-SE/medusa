@@ -82,7 +82,7 @@ export const CustomerGroupGeneralSection = ({
           {t("customers.domain")}
         </Text>
         <Text size="small" leading="compact">
-          {group.customers?.length || "-"}
+          {group.customers?.length ?? 0}
         </Text>
       </div>
     </Container>
