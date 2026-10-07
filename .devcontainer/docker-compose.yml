@@ -17,7 +17,9 @@ services:
       - redis
 
   postgres:
-    image: postgres:16-alpine
+    # Debian-based like the CI image: Alpine's musl ignores locale collation,
+    # so text sorts byte-wise and order-dependent tests fail locally.
+    image: postgres:16
     # STUDENTS.md uses localhost:5433 for Postgres
     command: ["postgres", "-c", "port=5433"]
     environment:
@@ -30,7 +32,9 @@ services:
       - "127.0.0.1:5434:5433"
       - "127.0.0.1:6381:6379"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # New volume: data initialized under musl collation isn't safe to reuse
+      # with glibc (text indexes can be ordered differently)
+      - pgdata-debian:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
@@ -41,5 +45,5 @@ services:
 
 volumes:
   node_modules:
-  pgdata:
+  pgdata-debian:
   claude-config:
