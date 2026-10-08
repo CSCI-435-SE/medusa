@@ -1,5 +1,9 @@
 import { DeleteResponseWithParent, PaginatedResponse } from "../../common"
-import { StoreCustomer, StoreCustomerAddress } from "./entities"
+import {
+  StoreCustomer,
+  StoreCustomerAddress,
+  StoreSubscription,
+} from "./entities"
 
 export interface StoreCustomerResponse {
   /**
@@ -27,3 +31,18 @@ export type StoreCustomerAddressDeleteResponse = DeleteResponseWithParent<
   "address",
   StoreCustomer
 >
+
+export interface StoreSubscriptionResponse {
+  /**
+   * The subscription's details.
+   */
+  subscription: StoreSubscription
+}
+
+export interface StoreSubscriptionListResponse
+  extends PaginatedResponse<{
+    /**
+     * The paginated list of subscriptions.
+     */
+    subscriptions: StoreSubscription[]
+  }> {}

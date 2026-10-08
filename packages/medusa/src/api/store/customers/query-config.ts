@@ -52,3 +52,29 @@ export const listAddressesTransformQueryConfig = {
   ...retrieveAddressTransformQueryConfig,
   isList: true,
 }
+
+export const defaultStoreSubscriptionFields = [
+  "id",
+  "customer_id",
+  "variant_id",
+  "quantity",
+  "interval",
+  "status",
+  "next_billing_at",
+  "canceled_at",
+  "failed_at",
+  "failure_reason",
+  "created_at",
+  "updated_at",
+]
+
+export const retrieveSubscriptionTransformQueryConfig = {
+  defaults: defaultStoreSubscriptionFields,
+  allowed: defaultStoreSubscriptionFields,
+  isList: false,
+}
+
+export const listSubscriptionsTransformQueryConfig = {
+  ...retrieveSubscriptionTransformQueryConfig,
+  isList: true,
+}

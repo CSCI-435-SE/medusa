@@ -2,35 +2,32 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { SubscriptionDTO } from "@medusajs/framework/types"
+import { HttpTypes } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
-export const SUBSCRIPTION_FIELDS = [
-  "id",
-  "customer_id",
-  "variant_id",
-  "quantity",
-  "interval",
-  "status",
-  "next_billing_at",
-  "canceled_at",
-  "failed_at",
-  "failure_reason",
-  "created_at",
-  "updated_at",
-]
-
 export const GET = async (
-  req: AuthenticatedMedusaRequest,
-  res: MedusaResponse<{ subscriptions: Partial<SubscriptionDTO>[] }>
+  req: AuthenticatedMedusaRequest<
+    undefined,
+    HttpTypes.StoreGetSubscriptionsParams
+  >,
+  res: MedusaResponse<HttpTypes.StoreSubscriptionListResponse>
 ) => {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
-  const { data: subscriptions } = await query.graph({
+  const { data: subscriptions, metadata } = await query.graph({
     entity: "subscription",
-    filters: { customer_id: req.auth_context.actor_id },
-    fields: SUBSCRIPTION_FIELDS,
+    filters: {
+      ...req.filterableFields,
+      customer_id: req.auth_context.actor_id,
+    },
+    fields: req.queryConfig.fields,
+    pagination: req.queryConfig.pagination,
   })
 
-  res.json({ subscriptions })
+  res.json({
+    subscriptions,
+    count: metadata!.count,
+    offset: metadata!.skip,
+    limit: metadata!.take,
+  })
 }

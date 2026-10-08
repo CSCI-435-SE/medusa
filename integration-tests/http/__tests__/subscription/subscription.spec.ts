@@ -162,7 +162,10 @@ medusaIntegrationTestRunner({
       expect(response.data.type).toEqual("order")
 
       const subscriptions = (
-        await api.get("/store/customers/me/subscriptions", customerHeaders)
+        await api.get(
+          "/store/customers/me/subscriptions?order=-created_at",
+          customerHeaders
+        )
       ).data.subscriptions
 
       return { order: response.data.order, subscription: subscriptions[0] }
@@ -485,6 +488,46 @@ medusaIntegrationTestRunner({
         )
       })
 
+      it("should renew a subscription only once when job runs overlap", async () => {
+        const { subscription } = await purchaseSubscription()
+
+        await makeDue(subscription.id)
+        await Promise.all([runRenewalJob(), runRenewalJob()])
+
+        const orders = await getSubscriptionOrders(subscription.id)
+        expect(orders).toHaveLength(2)
+
+        const [renewed] = await subscriptionModule().listSubscriptions({
+          id: subscription.id,
+        })
+        expect(renewed.status).toEqual("active")
+      })
+
+      it("should keep renewing other subscriptions after one fails", async () => {
+        const { subscription: declined } = await purchaseSubscription()
+        const { subscription: healthy } = await purchaseSubscription()
+
+        await subscriptionModule().updateSubscriptions({
+          id: declined.id,
+          payment_method_id: "pm_declined",
+        } as any)
+        await makeDue(declined.id)
+        await makeDue(healthy.id)
+        await runRenewalJob()
+
+        const [failed] = await subscriptionModule().listSubscriptions({
+          id: declined.id,
+        })
+        expect(failed.status).toEqual("failed")
+        expect(await getSubscriptionOrders(declined.id)).toHaveLength(1)
+
+        const [renewed] = await subscriptionModule().listSubscriptions({
+          id: healthy.id,
+        })
+        expect(renewed.status).toEqual("active")
+        expect(await getSubscriptionOrders(healthy.id)).toHaveLength(2)
+      })
+
       it("should not renew a subscription that isn't due", async () => {
         const { subscription } = await purchaseSubscription()
 
@@ -554,7 +597,7 @@ medusaIntegrationTestRunner({
         const { subscription } = await purchaseSubscription()
 
         const list = await api.get(
-          "/store/customers/me/subscriptions",
+          "/store/customers/me/subscriptions?status=active",
           customerHeaders
         )
         expect(list.data).toEqual({
@@ -565,7 +608,16 @@ medusaIntegrationTestRunner({
               status: "active",
             }),
           ],
+          count: 1,
+          offset: 0,
+          limit: 50,
         })
+
+        const canceled = await api.get(
+          "/store/customers/me/subscriptions?status=canceled",
+          customerHeaders
+        )
+        expect(canceled.data.subscriptions).toEqual([])
       })
 
       it("should cancel a subscription immediately so it isn't renewed", async () => {

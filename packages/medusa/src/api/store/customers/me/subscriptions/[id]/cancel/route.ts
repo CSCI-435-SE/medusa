@@ -3,16 +3,18 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { SubscriptionDTO } from "@medusajs/framework/types"
+import { HttpTypes } from "@medusajs/framework/types"
 import {
   ContainerRegistrationKeys,
   SubscriptionStatus,
 } from "@medusajs/framework/utils"
-import { SUBSCRIPTION_FIELDS } from "../../route"
 
 export const POST = async (
-  req: AuthenticatedMedusaRequest,
-  res: MedusaResponse<{ subscription: Partial<SubscriptionDTO> }>
+  req: AuthenticatedMedusaRequest<
+    undefined,
+    HttpTypes.StoreGetSubscriptionParams
+  >,
+  res: MedusaResponse<HttpTypes.StoreSubscriptionResponse>
 ) => {
   await endSubscriptionWorkflow(req.scope).run({
     input: {
@@ -28,7 +30,7 @@ export const POST = async (
   } = await query.graph({
     entity: "subscription",
     filters: { id: req.params.id },
-    fields: SUBSCRIPTION_FIELDS,
+    fields: req.queryConfig.fields,
   })
 
   res.status(200).json({ subscription })

@@ -15,6 +15,7 @@ import { completeCartWorkflow } from "../../cart/workflows/complete-cart"
 import { createCartWorkflow } from "../../cart/workflows/create-carts"
 import { createPaymentCollectionForCartWorkflow } from "../../cart/workflows/create-payment-collection-for-cart"
 import { createRemoteLinkStep, useQueryGraphStep } from "../../common"
+import { acquireLockStep, releaseLockStep } from "../../locking"
 import { createPaymentSessionsWorkflow } from "../../payment-collection/workflows/create-payment-session"
 import { updateSubscriptionsStep } from "../steps/update-subscriptions"
 import { validateSubscriptionRenewalStep } from "../steps/validate-subscription-renewal"
@@ -53,6 +54,8 @@ const ADDRESS_FIELDS = [
   "metadata",
 ] as const
 
+const TWO_MINUTES = 60 * 2
+
 export const renewSubscriptionWorkflowId = "renew-subscription"
 /**
  * This workflow renews a subscription that is due by placing a new order for
@@ -82,6 +85,15 @@ export const renewSubscriptionWorkflowId = "renew-subscription"
 export const renewSubscriptionWorkflow = createWorkflow(
   renewSubscriptionWorkflowId,
   (input: WorkflowData<RenewSubscriptionWorkflowInput>) => {
+    // Concurrent renewals of the same subscription wait here, then fail the
+    // due check below once the first one has advanced next_billing_at, so a
+    // subscription is never charged twice for the same period.
+    acquireLockStep({
+      key: input.id,
+      timeout: TWO_MINUTES,
+      ttl: TWO_MINUTES,
+    })
+
     const { data: subscription } = useQueryGraphStep({
       entity: "subscription",
       fields: [
@@ -224,6 +236,10 @@ export const renewSubscriptionWorkflow = createWorkflow(
     )
 
     updateSubscriptionsStep(subscriptionUpdate)
+
+    releaseLockStep({
+      key: input.id,
+    })
 
     const result = transform({ order }, ({ order }) => {
       return { order_id: order.id } as RenewSubscriptionWorkflowOutput
