@@ -66,7 +66,7 @@ medusaIntegrationTestRunner({
     describe("POST /admin/inventory-items/import", () => {
       it("creates every item in a valid file with its stock at the named location", async () => {
         const { form, meta } = getUploadReq(
-          "Shirt,SHIRT-1,true,10,Main Warehouse,Cotton shirt,20,30,2,12.5,MID1,HS1,us,Cotton",
+          "Shirt,SHIRT-1,true,10,Main Warehouse,Cotton shirt,20,30,2,12,MID1,HS1,us,Cotton",
           "Mug,MUG-1,false,0,Second Warehouse,,,,,,,,,",
           "Cup,CUP-1,true,5,Main Warehouse,,,,,,,,,"
         )
@@ -90,7 +90,7 @@ medusaIntegrationTestRunner({
             width: 20,
             length: 30,
             height: 2,
-            weight: 12.5,
+            weight: 12,
             mid_code: "MID1",
             hs_code: "HS1",
             origin_country: "us",
