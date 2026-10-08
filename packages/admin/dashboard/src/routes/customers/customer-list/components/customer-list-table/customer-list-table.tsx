@@ -14,6 +14,10 @@ import {
 import { PermissionGuard } from "../../../../../components/common/permission-guard"
 import { _DataTable } from "../../../../../components/table/data-table"
 import {
+  GroupsCell,
+  GroupsHeader,
+} from "../../../../../components/table/table-cells/customer/groups-cell"
+import {
   useCustomers,
   useDeleteCustomer,
 } from "../../../../../hooks/api/customers"
@@ -31,6 +35,9 @@ export const CustomerListTable = () => {
   const { searchParams, raw } = useCustomerTableQuery({ pageSize: PAGE_SIZE })
   const { customers, count, isLoading, isError, error } = useCustomers(
     {
+      // "+" adds the groups to the default customer fields instead of
+      // replacing them.
+      fields: "+groups.id,+groups.name",
       ...searchParams,
     },
     {
@@ -181,6 +188,10 @@ const useColumns = () => {
   return useMemo(
     () => [
       ...columns,
+      columnHelper.accessor("groups", {
+        header: () => <GroupsHeader />,
+        cell: ({ getValue }) => <GroupsCell groups={getValue()} />,
+      }),
       columnHelper.display({
         id: "actions",
         cell: ({ row }) => <CustomerActions customer={row.original} />,

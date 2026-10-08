@@ -74,6 +74,7 @@ vi.mock("react-i18next", () => ({
         "actions.edit": "Edit",
         "actions.delete": "Delete",
         "actions.import": "Import",
+        "customers.fields.groups": "Groups",
       }
       return labels[key] ?? key
     },
@@ -82,6 +83,7 @@ vi.mock("react-i18next", () => ({
   }),
 }))
 
+import { TooltipProvider } from "@medusajs/ui"
 import { useCustomers } from "../../../../../hooks/api/customers"
 import { CustomerActions, CustomerListTable } from "./customer-list-table"
 
@@ -162,14 +164,36 @@ describe("CustomerActions", () => {
 })
 
 describe("CustomerListTable", () => {
+  const customerInTwoGroups = {
+    id: "cus_2",
+    email: "jo@example.com",
+    first_name: "Jo",
+    last_name: "Doe",
+    has_account: false,
+    created_at: "2026-01-01T00:00:00.000Z",
+    groups: [
+      { id: "cusgroup_1", name: "VIP" },
+      { id: "cusgroup_2", name: "Wholesale" },
+    ],
+  }
+
+  const renderTable = (url = "/customers") =>
+    render(
+      <MemoryRouter initialEntries={[url]}>
+        <TooltipProvider>
+          <CustomerListTable />
+        </TooltipProvider>
+      </MemoryRouter>
+    )
+
   beforeEach(() => {
     // The table scrolls back to the top when its data changes, and jsdom does
     // not implement Element.scroll.
     Element.prototype.scroll = vi.fn()
 
     vi.mocked(useCustomers).mockReturnValue({
-      customers: [],
-      count: 0,
+      customers: [customerInTwoGroups],
+      count: 1,
       isLoading: false,
       isError: false,
       error: null,
@@ -177,13 +201,36 @@ describe("CustomerListTable", () => {
   })
 
   it("links to the customer import from the list header", () => {
-    render(
-      <MemoryRouter initialEntries={["/customers"]}>
-        <CustomerListTable />
-      </MemoryRouter>
-    )
+    renderTable()
 
     const link = screen.getByRole("link", { name: "Import" })
     expect(link.getAttribute("href")).toBe("/customers/import")
+  })
+
+  it("shows a Groups column with each customer's groups", () => {
+    renderTable()
+
+    expect(screen.getByText("Groups")).toBeTruthy()
+    expect(screen.getByText("VIP, Wholesale")).toBeTruthy()
+  })
+
+  it("adds groups to the request without changing search, filters, sorting or paging", () => {
+    renderTable("/customers?q=jo&groups=cusgroup_1&offset=20&order=-email")
+
+    const [params] = vi.mocked(useCustomers).mock.calls.at(-1)!
+
+    expect(params).toMatchObject({
+      q: "jo",
+      groups: ["cusgroup_1"],
+      offset: 20,
+      limit: 20,
+      order: "-email",
+    })
+
+    // Every field must start with "+" so it is added to the default customer
+    // fields instead of replacing them, which would drop email, name, etc.
+    const fields = (params?.fields ?? "").split(",")
+    expect(fields).toContain("+groups.name")
+    expect(fields.every((field) => field.startsWith("+"))).toBe(true)
   })
 })
