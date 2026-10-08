@@ -73,6 +73,7 @@ vi.mock("react-i18next", () => ({
       const labels: Record<string, string> = {
         "actions.edit": "Edit",
         "actions.delete": "Delete",
+        "actions.import": "Import",
         "customers.fields.groups": "Groups",
       }
       return labels[key] ?? key
@@ -197,6 +198,13 @@ describe("CustomerListTable", () => {
       isError: false,
       error: null,
     } as any)
+  })
+
+  it("links to the customer import from the list header", () => {
+    renderTable()
+
+    const link = screen.getByRole("link", { name: "Import" })
+    expect(link.getAttribute("href")).toBe("/customers/import")
   })
 
   it("shows a Groups column with each customer's groups", () => {

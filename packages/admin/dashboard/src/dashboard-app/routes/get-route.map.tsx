@@ -770,6 +770,18 @@ export function getRouteMap({
                         },
                       ],
                     },
+                    {
+                      path: "import",
+                      element: <RoutePermissionGuard />,
+                      handle: { permissions: "customer:create" },
+                      children: [
+                        {
+                          path: "",
+                          lazy: () =>
+                            import("../../routes/customers/customer-import"),
+                        },
+                      ],
+                    },
                   ],
                 },
                 {

@@ -4414,6 +4414,73 @@
           },
           "required": ["title", "fields", "create"],
           "additionalProperties": false
+        },
+        "import": {
+          "type": "object",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "uploadLabel": {
+              "type": "string"
+            },
+            "uploadHint": {
+              "type": "string"
+            },
+            "fileTooLarge": {
+              "type": "string"
+            },
+            "rowErrors": {
+              "type": "string"
+            },
+            "successToast": {
+              "type": "string"
+            },
+            "upload": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "importing": {
+                  "type": "string"
+                }
+              },
+              "required": ["title", "description", "importing"],
+              "additionalProperties": false
+            },
+            "template": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": ["title", "description"],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "header",
+            "description",
+            "uploadLabel",
+            "uploadHint",
+            "fileTooLarge",
+            "rowErrors",
+            "successToast",
+            "upload",
+            "template"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -4427,7 +4494,8 @@
         "registered",
         "guest",
         "hasAccount",
-        "addresses"
+        "addresses",
+        "import"
       ],
       "additionalProperties": false
     },

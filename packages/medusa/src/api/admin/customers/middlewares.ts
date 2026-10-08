@@ -18,7 +18,10 @@ import {
 } from "@medusajs/framework"
 import { MiddlewareRoute } from "@medusajs/framework/http"
 import { PolicyOperation } from "@medusajs/framework/utils"
+import multer from "multer"
 import { createLinkBody } from "../../utils/validators"
+
+const upload = multer({ storage: multer.memoryStorage() })
 
 export const adminCustomerRoutesMiddlewares: MiddlewareRoute[] = [
   {
@@ -56,6 +59,17 @@ export const adminCustomerRoutesMiddlewares: MiddlewareRoute[] = [
         QueryConfig.retrieveTransformQueryConfig
       ),
     ],
+    policies: [
+      {
+        resource: Entities.customer,
+        operation: PolicyOperation.create,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/customers/import",
+    middlewares: [upload.single("file")],
     policies: [
       {
         resource: Entities.customer,
