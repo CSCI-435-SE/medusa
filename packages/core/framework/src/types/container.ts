@@ -27,6 +27,7 @@ import {
   ISettingsModuleService,
   IStockLocationService,
   IStoreModuleService,
+  ISubscriptionModuleService,
   ITaxModuleService,
   ITranslationModuleService,
   IUserModuleService,
@@ -84,6 +85,7 @@ declare module "@medusajs/types" {
     [Modules.INDEX]: IIndexService
     [Modules.TRANSLATION]: ITranslationModuleService
     [Modules.RBAC]: IRbacModuleService
+    [Modules.SUBSCRIPTION]: ISubscriptionModuleService
   }
 }
 

@@ -4111,6 +4111,7 @@ __metadata:
     "@medusajs/settings": 2.17.2
     "@medusajs/stock-location": 2.17.2
     "@medusajs/store": 2.17.2
+    "@medusajs/subscription": 2.17.2
     "@medusajs/tax": 2.17.2
     "@medusajs/telemetry": 2.17.2
     "@medusajs/translation": 2.17.2
@@ -4346,6 +4347,17 @@ __metadata:
 "@medusajs/store@2.17.2, @medusajs/store@workspace:^, @medusajs/store@workspace:packages/modules/store":
   version: 0.0.0-use.local
   resolution: "@medusajs/store@workspace:packages/modules/store"
+  dependencies:
+    "@medusajs/framework": 2.17.2
+    "@medusajs/test-utils": 2.17.2
+  peerDependencies:
+    "@medusajs/framework": 2.17.2
+  languageName: unknown
+  linkType: soft
+
+"@medusajs/subscription@2.17.2, @medusajs/subscription@workspace:packages/modules/subscription":
+  version: 0.0.0-use.local
+  resolution: "@medusajs/subscription@workspace:packages/modules/subscription"
   dependencies:
     "@medusajs/framework": 2.17.2
     "@medusajs/test-utils": 2.17.2

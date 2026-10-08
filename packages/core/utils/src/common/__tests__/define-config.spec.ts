@@ -157,6 +157,9 @@ describe("defineConfig", function () {
           "store": {
             "resolve": "@medusajs/medusa/store",
           },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
+          },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
           },
@@ -494,6 +497,9 @@ describe("defineConfig", function () {
           "store": {
             "resolve": "@medusajs/medusa/store",
           },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
+          },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
           },
@@ -686,6 +692,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -881,6 +890,9 @@ describe("defineConfig", function () {
           "store": {
             "resolve": "@medusajs/medusa/store",
           },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
+          },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
           },
@@ -1062,6 +1074,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -1247,6 +1262,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -1480,6 +1498,9 @@ describe("defineConfig", function () {
           "store": {
             "resolve": "@medusajs/medusa/store",
           },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
+          },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
           },
@@ -1681,6 +1702,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -1915,6 +1939,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -2170,6 +2197,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -2461,6 +2491,9 @@ describe("defineConfig", function () {
           "store": {
             "resolve": "@medusajs/medusa/store",
           },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
+          },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
           },
@@ -2683,6 +2716,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -2911,6 +2947,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
@@ -3148,6 +3187,9 @@ describe("defineConfig", function () {
           },
           "store": {
             "resolve": "@medusajs/medusa/store",
+          },
+          "subscription": {
+            "resolve": "@medusajs/medusa/subscription",
           },
           "tax": {
             "resolve": "@medusajs/medusa/tax",
