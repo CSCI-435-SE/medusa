@@ -86,6 +86,25 @@ export const useCreateInventoryItem = (
   })
 }
 
+export const useImportInventoryItems = (
+  options?: UseMutationOptions<
+    HttpTypes.AdminImportInventoryItemsResponse,
+    FetchError,
+    HttpTypes.AdminImportInventoryItemsRequest
+  >
+) => {
+  return useMutation({
+    mutationFn: (payload) => sdk.admin.inventoryItem.import(payload),
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({
+        queryKey: inventoryItemsQueryKeys.lists(),
+      })
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
+
 export const useUpdateInventoryItem = (
   id: string,
   options?: UseMutationOptions<

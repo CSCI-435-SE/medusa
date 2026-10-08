@@ -19,6 +19,9 @@ import {
   AdminUpdateInventoryItem,
   AdminUpdateInventoryLocationLevel,
 } from "./validators"
+import multer from "multer"
+
+const upload = multer({ storage: multer.memoryStorage() })
 
 export const adminInventoryRoutesMiddlewares: MiddlewareRoute[] = [
   {
@@ -75,6 +78,17 @@ export const adminInventoryRoutesMiddlewares: MiddlewareRoute[] = [
         QueryConfig.retrieveTransformQueryConfig
       ),
     ],
+    policies: [
+      {
+        resource: Entities.inventory_item,
+        operation: PolicyOperation.create,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/inventory-items/import",
+    middlewares: [upload.single("file")],
     policies: [
       {
         resource: Entities.inventory_item,

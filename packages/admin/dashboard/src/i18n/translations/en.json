@@ -1035,6 +1035,24 @@
       "disablePrompt_other": "You are about to disable {{count}} location levels. This action cannot be undone.",
       "disabledToggleTooltip": "Cannot disable: clear incoming and/or reserved quantity before disabling.",
       "successToast": "Inventory levels updated successfully."
+    },
+    "import": {
+      "header": "Import Inventory",
+      "description": "Import inventory items by providing a CSV file in a pre-defined format",
+      "uploadLabel": "Upload inventory items",
+      "uploadHint": "Drag and drop a CSV file or click to upload",
+      "fileTooLarge": "The file is larger than the {{size}} upload limit",
+      "rowErrors": "No inventory items were imported. Fix these rows and try again:",
+      "successToast": "Imported {{count}} inventory items",
+      "upload": {
+        "title": "Upload a CSV file",
+        "description": "Each row creates a new inventory item with its stock at the row's location. Every row is checked first, and if any row has a problem no inventory items are imported.",
+        "importing": "Importing..."
+      },
+      "template": {
+        "title": "Unsure about how to arrange your list?",
+        "description": "Download the template below to ensure you are following the correct format."
+      }
     }
   },
   "giftCards": {
