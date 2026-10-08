@@ -19,12 +19,17 @@ vi.hoisted(() => {
 
 // The action menu renders icons from @medusajs/icons through Radix's dropdown
 // trigger, which does not render reliably in jsdom. combobox.spec.tsx stubs
-// icons the same way for the same reason.
-vi.mock("@medusajs/icons", () => ({
-  PencilSquare: () => <div data-testid="pencil-icon" />,
-  Trash: () => <div data-testid="trash-icon" />,
-  EllipsisHorizontal: () => <div data-testid="ellipsis-icon" />,
-}))
+// icons the same way for the same reason. The full table also renders icons
+// for search, filters and sorting, so every icon is stubbed.
+vi.mock("@medusajs/icons", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return Object.fromEntries(
+    Object.keys(actual).map((name) => [
+      name,
+      () => <div data-testid={`icon-${name}`} />,
+    ])
+  )
+})
 
 const mockPrompt = vi.fn()
 const mockMutateAsync = vi.fn()
@@ -46,8 +51,20 @@ vi.mock("../../../../../hooks/api/customers", () => ({
   useDeleteCustomer: () => ({ mutateAsync: mockMutateAsync }),
 }))
 
+// The group filter loads the list of customer groups to offer as options.
+vi.mock("../../../../../hooks/api/customer-groups", () => ({
+  useCustomerGroups: () => ({ customer_groups: [] }),
+}))
+
+// The create button's PermissionGuard also registers and checks permissions.
 vi.mock("../../../../../providers/permissions-provider", () => ({
-  usePermissions: () => ({ can: mockCan }),
+  usePermissions: () => ({
+    can: mockCan,
+    hasAnyPermission: () => true,
+    hasAllPermissions: () => true,
+    isLoading: false,
+  }),
+  useRegisterPermissions: vi.fn(),
 }))
 
 vi.mock("react-i18next", () => ({
@@ -56,13 +73,18 @@ vi.mock("react-i18next", () => ({
       const labels: Record<string, string> = {
         "actions.edit": "Edit",
         "actions.delete": "Delete",
+        "customers.fields.groups": "Groups",
       }
       return labels[key] ?? key
     },
+    // The date cell reads the language to pick a date locale.
+    i18n: { language: "en" },
   }),
 }))
 
-import { CustomerActions } from "./customer-list-table"
+import { TooltipProvider } from "@medusajs/ui"
+import { useCustomers } from "../../../../../hooks/api/customers"
+import { CustomerActions, CustomerListTable } from "./customer-list-table"
 
 const customer = {
   id: "cus_1",
@@ -137,5 +159,70 @@ describe("CustomerActions", () => {
 
     await waitFor(() => expect(mockPrompt).toHaveBeenCalled())
     expect(mockMutateAsync).not.toHaveBeenCalled()
+  })
+})
+
+describe("CustomerListTable", () => {
+  const customerInTwoGroups = {
+    id: "cus_2",
+    email: "jo@example.com",
+    first_name: "Jo",
+    last_name: "Doe",
+    has_account: false,
+    created_at: "2026-01-01T00:00:00.000Z",
+    groups: [
+      { id: "cusgroup_1", name: "VIP" },
+      { id: "cusgroup_2", name: "Wholesale" },
+    ],
+  }
+
+  const renderTable = (url = "/customers") =>
+    render(
+      <MemoryRouter initialEntries={[url]}>
+        <TooltipProvider>
+          <CustomerListTable />
+        </TooltipProvider>
+      </MemoryRouter>
+    )
+
+  beforeEach(() => {
+    // The table scrolls back to the top when its data changes, and jsdom does
+    // not implement Element.scroll.
+    Element.prototype.scroll = vi.fn()
+
+    vi.mocked(useCustomers).mockReturnValue({
+      customers: [customerInTwoGroups],
+      count: 1,
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as any)
+  })
+
+  it("shows a Groups column with each customer's groups", () => {
+    renderTable()
+
+    expect(screen.getByText("Groups")).toBeTruthy()
+    expect(screen.getByText("VIP, Wholesale")).toBeTruthy()
+  })
+
+  it("adds groups to the request without changing search, filters, sorting or paging", () => {
+    renderTable("/customers?q=jo&groups=cusgroup_1&offset=20&order=-email")
+
+    const [params] = vi.mocked(useCustomers).mock.calls.at(-1)!
+
+    expect(params).toMatchObject({
+      q: "jo",
+      groups: ["cusgroup_1"],
+      offset: 20,
+      limit: 20,
+      order: "-email",
+    })
+
+    // Every field must start with "+" so it is added to the default customer
+    // fields instead of replacing them, which would drop email, name, etc.
+    const fields = (params?.fields ?? "").split(",")
+    expect(fields).toContain("+groups.name")
+    expect(fields.every((field) => field.startsWith("+"))).toBe(true)
   })
 })
