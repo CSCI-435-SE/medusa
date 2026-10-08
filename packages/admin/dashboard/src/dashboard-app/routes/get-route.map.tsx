@@ -990,6 +990,11 @@ export function getRouteMap({
                         import("../../routes/inventory/inventory-create"),
                     },
                     {
+                      path: "import",
+                      lazy: () =>
+                        import("../../routes/inventory/inventory-import"),
+                    },
+                    {
                       path: "stock",
                       lazy: () =>
                         import("../../routes/inventory/inventory-stock"),
