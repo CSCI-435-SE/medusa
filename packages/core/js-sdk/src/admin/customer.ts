@@ -48,6 +48,46 @@ export class Customer {
   }
 
   /**
+   * This method imports customers from a CSV file. It sends a request to the
+   * Import Customers API route.
+   *
+   * Every row is checked first. If any row is invalid, no customers are
+   * created and the error message lists each failing row.
+   *
+   * @param body - The CSV file to import.
+   * @param headers - Headers to pass in the request.
+   * @returns The number of customers created.
+   *
+   * @example
+   * sdk.admin.customer.import({
+   *   file // an uploaded File object
+   * })
+   * .then(({ created }) => {
+   *   console.log(created)
+   * })
+   */
+  async import(
+    body: HttpTypes.AdminImportCustomersRequest,
+    headers?: ClientHeaders
+  ) {
+    const form = new FormData()
+    form.append("file", body.file)
+
+    return this.client.fetch<HttpTypes.AdminImportCustomersResponse>(
+      `/admin/customers/import`,
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+          // Let the browser determine the content type.
+          "content-type": null,
+        },
+        body: form,
+      }
+    )
+  }
+
+  /**
    * This method updates a customer's details. It sends a request to the
    * [Update Customer](https://docs.medusajs.com/api/admin#customers_postcustomersid) API route.
    *
