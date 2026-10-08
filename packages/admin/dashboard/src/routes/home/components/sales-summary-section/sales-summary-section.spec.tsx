@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import userEvent from "@testing-library/user-event"
+import { differenceInCalendarDays } from "date-fns"
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest"
 
 import { getLocaleAmount } from "../../../../lib/money-amount-helpers"
 import { SalesSummarySection } from "./sales-summary-section"
@@ -29,13 +39,21 @@ vi.mock("react-i18next", () => ({
 vi.mock("@medusajs/icons", () => ({
   ExclamationCircle: () => <div data-testid="exclamation-circle" />,
   PlusMini: () => <div data-testid="plus-mini" />,
+  // Used by the interval dropdown and the custom range date pickers.
+  Check: () => <div />,
+  TrianglesMini: () => <div />,
+  TriangleLeftMini: () => <div />,
+  TriangleRightMini: () => <div />,
+  CalendarMini: () => <div />,
+  Clock: () => <div />,
+  XMarkMini: () => <div />,
 }))
 
 // Replace the data hook so each test can control what the API "returned"
 // without a QueryClient or network.
 const useSalesSummaryMock = vi.fn()
 vi.mock("../../../../hooks/api/analytics", () => ({
-  useSalesSummary: () => useSalesSummaryMock(),
+  useSalesSummary: (query?: unknown) => useSalesSummaryMock(query),
 }))
 
 /**
@@ -52,6 +70,38 @@ const mockHook = (state: {
     ...state,
   })
 }
+
+/**
+ * The query the panel most recently asked `useSalesSummary` for.
+ */
+const lastQuery = () =>
+  useSalesSummaryMock.mock.calls[useSalesSummaryMock.mock.calls.length - 1][0]
+
+/**
+ * Whole days (local time) from the start of the requested range to its end,
+ * counting both ends: a 7 day range returns 7.
+ */
+const daysCovered = (query: { start_date: string; end_date: string }) =>
+  differenceInCalendarDays(
+    new Date(query.end_date),
+    new Date(query.start_date)
+  ) + 1
+
+const EMPTY_SUMMARY = {
+  currency_code: "usd",
+  total_revenue: 0,
+  order_count: 0,
+  top_products: [],
+}
+
+// jsdom doesn't implement the pointer capture and scrolling APIs the Radix
+// select relies on, so opening the interval dropdown needs these stand-ins.
+beforeAll(() => {
+  Element.prototype.hasPointerCapture = () => false
+  Element.prototype.setPointerCapture = () => {}
+  Element.prototype.releasePointerCapture = () => {}
+  Element.prototype.scrollIntoView = () => {}
+})
 
 beforeEach(() => {
   useSalesSummaryMock.mockReset()
@@ -172,5 +222,76 @@ describe("SalesSummarySection", () => {
     expect(screen.getByText("home.salesSummary.errorTitle")).toBeTruthy()
     expect(screen.getByText("home.salesSummary.errorMessage")).toBeTruthy()
     expect(screen.queryByText("home.salesSummary.totalRevenue")).toBeNull()
+  })
+
+  describe("time interval", () => {
+    it("starts on the last 7 days", () => {
+      mockHook({ sales_summary: EMPTY_SUMMARY })
+
+      render(<SalesSummarySection />)
+
+      expect(daysCovered(lastQuery())).toEqual(7)
+      expect(
+        screen.getByRole("combobox", {
+          name: "home.salesSummary.interval.label",
+        }).textContent
+      ).toContain("home.salesSummary.interval.week")
+      expect(
+        screen.queryByLabelText("home.salesSummary.interval.startDate")
+      ).toBeNull()
+    })
+
+    it.each([
+      ["month", 30],
+      ["quarter", 90],
+      ["year", 365],
+    ])("requests the %s preset when it is selected", async (preset, days) => {
+      mockHook({ sales_summary: EMPTY_SUMMARY })
+      const user = userEvent.setup()
+
+      render(<SalesSummarySection />)
+
+      await user.click(
+        screen.getByRole("combobox", {
+          name: "home.salesSummary.interval.label",
+        })
+      )
+      await user.click(
+        await screen.findByRole("option", {
+          name: `home.salesSummary.interval.${preset}`,
+        })
+      )
+
+      // Quarters and years are calendar based, so allow for month lengths and
+      // leap years.
+      expect(Math.abs(daysCovered(lastQuery()) - days)).toBeLessThanOrEqual(3)
+    })
+
+    it("shows start and end date pickers for a custom range", async () => {
+      mockHook({ sales_summary: EMPTY_SUMMARY })
+      const user = userEvent.setup()
+
+      render(<SalesSummarySection />)
+
+      await user.click(
+        screen.getByRole("combobox", {
+          name: "home.salesSummary.interval.label",
+        })
+      )
+      await user.click(
+        await screen.findByRole("option", {
+          name: "home.salesSummary.interval.custom",
+        })
+      )
+
+      expect(
+        screen.getByLabelText("home.salesSummary.interval.startDate")
+      ).toBeTruthy()
+      expect(
+        screen.getByLabelText("home.salesSummary.interval.endDate")
+      ).toBeTruthy()
+      // The range starts from the previous period until dates are changed.
+      expect(daysCovered(lastQuery())).toEqual(7)
+    })
   })
 })

@@ -1770,6 +1770,46 @@
             "description": {
               "type": "string"
             },
+            "interval": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "week": {
+                  "type": "string"
+                },
+                "month": {
+                  "type": "string"
+                },
+                "quarter": {
+                  "type": "string"
+                },
+                "year": {
+                  "type": "string"
+                },
+                "custom": {
+                  "type": "string"
+                },
+                "startDate": {
+                  "type": "string"
+                },
+                "endDate": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "week",
+                "month",
+                "quarter",
+                "year",
+                "custom",
+                "startDate",
+                "endDate"
+              ],
+              "additionalProperties": false
+            },
             "totalRevenue": {
               "type": "string"
             },
@@ -1819,6 +1859,7 @@
           "required": [
             "title",
             "description",
+            "interval",
             "totalRevenue",
             "orderCount",
             "topProducts",

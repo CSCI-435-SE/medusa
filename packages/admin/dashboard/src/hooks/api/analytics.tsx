@@ -1,4 +1,9 @@
-import { QueryKey, UseQueryOptions, useQuery } from "@tanstack/react-query"
+import {
+  QueryKey,
+  UseQueryOptions,
+  keepPreviousData,
+  useQuery,
+} from "@tanstack/react-query"
 
 import { FetchError } from "@medusajs/js-sdk"
 import { HttpTypes } from "@medusajs/types"
@@ -9,21 +14,25 @@ const ANALYTICS_QUERY_KEY = "analytics" as const
 export const analyticsQueryKeys = queryKeysFactory(ANALYTICS_QUERY_KEY)
 
 /**
- * How long a fetched sales summary is considered fresh. Issue #42 only needs a
- * snapshot on load (no live updates), so we avoid refetching the summary every
- * time the merchant navigates back to the home page.
+ * How long a fetched sales summary is considered fresh. The summary is a
+ * snapshot (no live updates), so we avoid refetching it every time the
+ * merchant navigates back to the home page or switches back to a period they
+ * already viewed.
  */
 const SALES_SUMMARY_STALE_TIME = 5 * 60 * 1000 // 5 minutes
 
 /**
  * Fetches the sales summary (total revenue, order count, and top products)
- * shown on the dashboard home page.
+ * shown on the dashboard home page, for the date range in `query` (issue #30).
+ * Each range is cached separately, and the previous range's figures stay on
+ * screen while a new range loads so the panel doesn't flash its skeleton.
  *
  * The JS SDK has no method for this custom endpoint, so we call it through the
  * SDK's generic `client.fetch`, which still handles the base URL and the
  * admin's authentication for us.
  */
 export const useSalesSummary = (
+  query?: HttpTypes.AdminGetSalesSummaryParams,
   options?: Omit<
     UseQueryOptions<
       HttpTypes.AdminSalesSummaryResponse,
@@ -38,10 +47,11 @@ export const useSalesSummary = (
     queryFn: () =>
       sdk.client.fetch<HttpTypes.AdminSalesSummaryResponse>(
         "/admin/analytics/sales-summary",
-        { method: "GET" }
+        { method: "GET", query }
       ),
-    queryKey: analyticsQueryKeys.detail("sales-summary"),
+    queryKey: analyticsQueryKeys.detail("sales-summary", query),
     staleTime: SALES_SUMMARY_STALE_TIME,
+    placeholderData: keepPreviousData,
     ...options,
   })
 

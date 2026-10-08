@@ -12,6 +12,15 @@ jest.setTimeout(300000)
 
 const SALES_SUMMARY_URL = "/admin/analytics/sales-summary"
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Every summary reports the date range it covers. Most tests don't care what
+// the exact dates are, so they only check that they are present.
+const dateFields = {
+  start_date: expect.any(String),
+  end_date: expect.any(String),
+}
+
 medusaIntegrationTestRunner({
   testSuite: ({ dbConnection, getContainer, api, dbUtils }) => {
     let container
@@ -73,8 +82,22 @@ medusaIntegrationTestRunner({
       )
     }
 
-    const getSalesSummary = async () =>
-      (await api.get(SALES_SUMMARY_URL, adminHeaders)).data.sales_summary
+    const getSalesSummary = async (query: Record<string, string> = {}) =>
+      (
+        await api.get(
+          `${SALES_SUMMARY_URL}?${new URLSearchParams(query)}`,
+          adminHeaders
+        )
+      ).data.sales_summary
+
+    /**
+     * Moves an order's purchase time back by the given number of days.
+     */
+    const backdateOrder = async (orderId: string, daysAgo: number) =>
+      await dbConnection.raw(`UPDATE "order" SET created_at = ? WHERE id = ?`, [
+        new Date(Date.now() - daysAgo * DAY_MS),
+        orderId,
+      ])
 
     describe("GET /admin/analytics/sales-summary", () => {
       it("should return a zero state when there are no orders", async () => {
@@ -82,6 +105,7 @@ medusaIntegrationTestRunner({
 
         expect(response.status).toEqual(200)
         expect(response.data.sales_summary).toEqual({
+          ...dateFields,
           currency_code: "usd",
           total_revenue: 0,
           order_count: 0,
@@ -93,6 +117,7 @@ medusaIntegrationTestRunner({
         await seedOrder()
 
         expect(await getSalesSummary()).toEqual({
+          ...dateFields,
           currency_code: "usd",
           total_revenue: 0,
           order_count: 0,
@@ -105,6 +130,7 @@ medusaIntegrationTestRunner({
         await capturePayment(order)
 
         expect(await getSalesSummary()).toEqual({
+          ...dateFields,
           currency_code: "usd",
           // Revenue is the order's current total (items + tax).
           total_revenue: order.summary.current_order_total,
@@ -152,6 +178,7 @@ medusaIntegrationTestRunner({
         await api.post(`/admin/orders/${order.id}/cancel`, {}, adminHeaders)
 
         expect(await getSalesSummary()).toEqual({
+          ...dateFields,
           currency_code: "usd",
           total_revenue: 0,
           order_count: 0,
@@ -176,10 +203,139 @@ medusaIntegrationTestRunner({
         })
 
         expect(await getSalesSummary()).toEqual({
+          ...dateFields,
           currency_code: "eur",
           total_revenue: 0,
           order_count: 0,
           top_products: [],
+        })
+      })
+
+      describe("date range", () => {
+        it("should cover the last 7 days by default", async () => {
+          const summary = await getSalesSummary()
+
+          const rangeMs =
+            new Date(summary.end_date).getTime() -
+            new Date(summary.start_date).getTime()
+
+          expect(rangeMs).toEqual(7 * DAY_MS)
+          expect(new Date(summary.end_date).getTime()).toBeLessThanOrEqual(
+            Date.now()
+          )
+        })
+
+        it("should not count orders placed before the default range", async () => {
+          const { order } = await seedOrder()
+          await capturePayment(order)
+          await backdateOrder(order.id, 20)
+
+          expect(await getSalesSummary()).toEqual({
+            ...dateFields,
+            currency_code: "usd",
+            total_revenue: 0,
+            order_count: 0,
+            top_products: [],
+          })
+        })
+
+        it("should count an older order when the range includes it", async () => {
+          const { order, product } = await seedOrder()
+          await capturePayment(order)
+          await backdateOrder(order.id, 20)
+
+          const summary = await getSalesSummary({
+            start_date: new Date(Date.now() - 30 * DAY_MS).toISOString(),
+            end_date: new Date().toISOString(),
+          })
+
+          expect(summary.order_count).toEqual(1)
+          expect(summary.total_revenue).toEqual(
+            order.summary.current_order_total
+          )
+          expect(summary.top_products).toEqual([
+            { product_id: product.id, title: product.title, units_sold: 1 },
+          ])
+        })
+
+        it("should not count orders placed after the range ends", async () => {
+          const { order } = await seedOrder()
+          await capturePayment(order)
+
+          const summary = await getSalesSummary({
+            start_date: new Date(Date.now() - 30 * DAY_MS).toISOString(),
+            end_date: new Date(Date.now() - 10 * DAY_MS).toISOString(),
+          })
+
+          expect(summary.order_count).toEqual(0)
+          expect(summary.total_revenue).toEqual(0)
+          expect(summary.top_products).toEqual([])
+        })
+
+        it("should treat an end date in the future as now", async () => {
+          const { order } = await seedOrder()
+          await capturePayment(order)
+
+          const summary = await getSalesSummary({
+            end_date: new Date(Date.now() + 2 * DAY_MS).toISOString(),
+          })
+
+          expect(summary.order_count).toEqual(1)
+          expect(new Date(summary.end_date).getTime()).toBeLessThanOrEqual(
+            Date.now()
+          )
+        })
+
+        it("should reject an end date before the start date", async () => {
+          const error = await api
+            .get(
+              `${SALES_SUMMARY_URL}?${new URLSearchParams({
+                start_date: new Date(Date.now() - DAY_MS).toISOString(),
+                end_date: new Date(Date.now() - 3 * DAY_MS).toISOString(),
+              })}`,
+              adminHeaders
+            )
+            .catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
+          expect(error.response.data.message).toContain(
+            "end_date cannot be before start_date"
+          )
+        })
+
+        it("should reject a range longer than 12 months", async () => {
+          const error = await api
+            .get(
+              `${SALES_SUMMARY_URL}?${new URLSearchParams({
+                start_date: new Date(Date.now() - 400 * DAY_MS).toISOString(),
+                end_date: new Date().toISOString(),
+              })}`,
+              adminHeaders
+            )
+            .catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
+          expect(error.response.data.message).toContain("12 months")
+        })
+
+        it("should accept a range of 12 months", async () => {
+          const response = await api.get(
+            `${SALES_SUMMARY_URL}?${new URLSearchParams({
+              start_date: new Date(Date.now() - 360 * DAY_MS).toISOString(),
+              end_date: new Date().toISOString(),
+            })}`,
+            adminHeaders
+          )
+
+          expect(response.status).toEqual(200)
+        })
+
+        it("should reject dates that are not valid", async () => {
+          const error = await api
+            .get(`${SALES_SUMMARY_URL}?start_date=yesterday`, adminHeaders)
+            .catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
         })
       })
 

@@ -32,10 +32,11 @@ export interface AdminSalesSummaryTopProduct {
 }
 
 /**
- * A static snapshot of the store's sales performance, shown on the admin
+ * The store's sales performance over a date range, shown on the admin
  * dashboard home page.
  *
- * Only orders that are not drafts, not canceled, and have been paid
+ * Only orders placed within the date range are counted, using the order's
+ * creation time. Of those, only orders that are not drafts, not canceled, and have been paid
  * (captured, partially captured, or partially refunded payments) are counted.
  * Only orders in the store's default currency are included, since amounts in
  * different currencies can't be summed into a single meaningful number.
@@ -50,6 +51,21 @@ export interface AdminSalesSummary {
    * "usd"
    */
   currency_code: string | null
+  /**
+   * The start of the date range the figures cover, as an ISO 8601 date-time.
+   *
+   * @example
+   * "2026-09-30T00:00:00.000Z"
+   */
+  start_date: string
+  /**
+   * The end of the date range the figures cover, as an ISO 8601 date-time.
+   * This is never later than the time of the request.
+   *
+   * @example
+   * "2026-10-07T15:30:00.000Z"
+   */
+  end_date: string
   /**
    * The revenue from all qualifying orders, net of refunds, in the major
    * unit of the currency (for example, `10.5` means $10.50). Each order

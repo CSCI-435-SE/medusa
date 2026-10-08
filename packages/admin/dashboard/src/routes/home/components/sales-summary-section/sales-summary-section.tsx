@@ -1,12 +1,23 @@
 import { ExclamationCircle } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
-import { Container, Heading, Text } from "@medusajs/ui"
+import { Container, DatePicker, Heading, Select, Text } from "@medusajs/ui"
+import { endOfDay, startOfDay } from "date-fns"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { NoRecords } from "../../../../components/common/empty-table-content"
 import { Skeleton } from "../../../../components/common/skeleton"
 import { useSalesSummary } from "../../../../hooks/api/analytics"
 import { getLocaleAmount } from "../../../../lib/money-amount-helpers"
+import {
+  DEFAULT_INTERVAL,
+  DateRange,
+  PRESET_INTERVALS,
+  SalesSummaryInterval,
+  getEarliestStart,
+  getLatestEnd,
+  getPresetRange,
+} from "./date-range"
 
 /**
  * The "Sales overview" panel on the dashboard home page (issue #42).
@@ -16,6 +27,10 @@ import { getLocaleAmount } from "../../../../lib/money-amount-helpers"
  * Only paid, non-draft, non-canceled orders in the store's default currency
  * are counted (the backend applies these rules).
  *
+ * The merchant picks the period to show (issue #30): one of four presets or a
+ * custom date range. It always starts on "Last 7 days" and the choice isn't
+ * saved between visits.
+ *
  * The component handles four states:
  * - loading: skeleton placeholders with the same layout as the loaded panel
  * - error: an inline message, so a failing summary doesn't break the page
@@ -24,15 +39,44 @@ import { getLocaleAmount } from "../../../../lib/money-amount-helpers"
  */
 export const SalesSummarySection = () => {
   const { t } = useTranslation()
-  const { sales_summary, isPending, isError } = useSalesSummary()
+  const [interval, setInterval] =
+    useState<SalesSummaryInterval>(DEFAULT_INTERVAL)
+  // The range is kept in state (rather than recomputed on every render) so the
+  // request stays the same until the merchant changes something.
+  const [range, setRange] = useState<DateRange>(() =>
+    getPresetRange(DEFAULT_INTERVAL)
+  )
+
+  const { sales_summary, isPending, isError } = useSalesSummary({
+    start_date: range.start.toISOString(),
+    end_date: range.end.toISOString(),
+  })
+
+  // Picking a preset recomputes the range from today. Picking "custom" keeps
+  // the current range as a starting point for the date pickers.
+  const handleIntervalChange = (value: SalesSummaryInterval) => {
+    setInterval(value)
+
+    if (value !== "custom") {
+      setRange(getPresetRange(value))
+    }
+  }
 
   return (
     <Container className="divide-y p-0">
-      <div className="px-6 py-4">
-        <Heading>{t("home.salesSummary.title")}</Heading>
-        <Text size="small" className="text-ui-fg-subtle">
-          {t("home.salesSummary.description")}
-        </Text>
+      <div className="flex flex-col gap-4 px-6 py-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <Heading>{t("home.salesSummary.title")}</Heading>
+          <Text size="small" className="text-ui-fg-subtle">
+            {t("home.salesSummary.description")}
+          </Text>
+        </div>
+        <IntervalControls
+          interval={interval}
+          range={range}
+          onIntervalChange={handleIntervalChange}
+          onRangeChange={setRange}
+        />
       </div>
       <SalesSummaryBody
         summary={sales_summary}
@@ -40,6 +84,77 @@ export const SalesSummarySection = () => {
         isError={isError}
       />
     </Container>
+  )
+}
+
+/**
+ * The period dropdown, plus start and end date pickers when "Custom range" is
+ * selected. The pickers only offer dates that make a valid range: the end
+ * can't be before the start, nothing in the future, and no more than 12 months
+ * between the two (the backend rejects longer ranges).
+ */
+const IntervalControls = ({
+  interval,
+  range,
+  onIntervalChange,
+  onRangeChange,
+}: {
+  interval: SalesSummaryInterval
+  range: DateRange
+  onIntervalChange: (interval: SalesSummaryInterval) => void
+  onRangeChange: (range: DateRange) => void
+}) => {
+  const { t } = useTranslation()
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <Select
+        size="small"
+        value={interval}
+        onValueChange={(value) =>
+          onIntervalChange(value as SalesSummaryInterval)
+        }
+      >
+        <Select.Trigger aria-label={t("home.salesSummary.interval.label")}>
+          <Select.Value />
+        </Select.Trigger>
+        <Select.Content>
+          {[...PRESET_INTERVALS, "custom" as const].map((value) => (
+            <Select.Item key={value} value={value}>
+              {t(`home.salesSummary.interval.${value}`)}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select>
+      {interval === "custom" && (
+        <>
+          <DatePicker
+            size="small"
+            aria-label={t("home.salesSummary.interval.startDate")}
+            granularity="day"
+            shouldCloseOnSelect
+            value={range.start}
+            minValue={getEarliestStart(range.end)}
+            maxValue={range.end}
+            onChange={(date) =>
+              date && onRangeChange({ ...range, start: startOfDay(date) })
+            }
+          />
+          <DatePicker
+            size="small"
+            aria-label={t("home.salesSummary.interval.endDate")}
+            granularity="day"
+            shouldCloseOnSelect
+            value={range.end}
+            minValue={range.start}
+            maxValue={getLatestEnd(range.start)}
+            onChange={(date) =>
+              date && onRangeChange({ ...range, end: endOfDay(date) })
+            }
+          />
+        </>
+      )}
+    </div>
   )
 }
 
