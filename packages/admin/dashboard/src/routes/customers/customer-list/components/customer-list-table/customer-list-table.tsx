@@ -59,11 +59,18 @@ export const CustomerListTable = () => {
       <div className="flex items-center justify-between px-6 py-4">
         <Heading>{t("customers.domain")}</Heading>
         <PermissionGuard resource="customer" operation="create">
-          <Link to="/customers/create">
-            <Button size="small" variant="secondary">
-              {t("actions.create")}
-            </Button>
-          </Link>
+          <div className="flex items-center gap-x-2">
+            <Link to="/customers/import">
+              <Button size="small" variant="secondary">
+                {t("actions.import")}
+              </Button>
+            </Link>
+            <Link to="/customers/create">
+              <Button size="small" variant="secondary">
+                {t("actions.create")}
+              </Button>
+            </Link>
+          </div>
         </PermissionGuard>
       </div>
       <_DataTable

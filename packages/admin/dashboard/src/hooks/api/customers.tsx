@@ -78,6 +78,23 @@ export const useCreateCustomer = (
   })
 }
 
+export const useImportCustomers = (
+  options?: UseMutationOptions<
+    HttpTypes.AdminImportCustomersResponse,
+    FetchError,
+    HttpTypes.AdminImportCustomersRequest
+  >
+) => {
+  return useMutation({
+    mutationFn: (payload) => sdk.admin.customer.import(payload),
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: customersQueryKeys.lists() })
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
+
 export const useUpdateCustomer = (
   id: string,
   options?: UseMutationOptions<

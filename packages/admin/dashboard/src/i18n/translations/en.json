@@ -1116,6 +1116,24 @@
         "hint": "Create a new address for the customer.",
         "successToast": "Address was successfully created."
       }
+    },
+    "import": {
+      "header": "Import Customers",
+      "description": "Import customers by providing a CSV file in a pre-defined format",
+      "uploadLabel": "Upload customers",
+      "uploadHint": "Drag and drop a CSV file or click to upload",
+      "fileTooLarge": "The file is larger than the {{size}} upload limit",
+      "rowErrors": "No customers were imported. Fix these rows and try again:",
+      "successToast": "Imported {{count}} customers",
+      "upload": {
+        "title": "Upload a CSV file",
+        "description": "Each row creates a new customer. Every row is checked first, and if any row has a problem no customers are imported.",
+        "importing": "Importing..."
+      },
+      "template": {
+        "title": "Unsure about how to arrange your list?",
+        "description": "Download the template below to ensure you are following the correct format."
+      }
     }
   },
   "customerGroups": {
