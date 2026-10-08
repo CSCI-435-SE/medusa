@@ -708,19 +708,19 @@ export class Store {
     },
     /**
      * This method retrieves a single product to suggest for a cart, such as an upsell
-     * during checkout. It sends a request to the Get Suggested Product API route.
+     * during checkout, from the categories of the products already in it. It sends a request
+     * to the Get Suggested Product API route.
      *
-     * The suggested product is the best-selling product in the cart's sales channel that
-     * isn't already in the cart and has a variant that's in stock and priced in the cart's
-     * currency. If no best-seller is eligible, such as when the store has no sales yet, the
-     * first eligible product in the catalog is suggested instead. Its variants are limited to
-     * those that can be added to the cart, so you can add one with {@link createLineItem}
-     * without retrieving the product again.
+     * The suggested product is the best-selling product in the cart's categories that isn't
+     * already in the cart and has a variant that's in stock and priced in the cart's currency.
+     * If no such product has been sold, the first eligible product in the categories is
+     * suggested instead. Its variants are limited to those that can be added to the cart, so
+     * you can add one with {@link createLineItem} without retrieving the product again.
      *
      * @param id - The cart's ID.
      * @param query - Configure the fields to retrieve in the suggested product.
      * @param headers - Headers to pass in the request.
-     * @returns The suggested product, or `null` if no product in the catalog is eligible.
+     * @returns The suggested product, or `null` if no product in the cart's categories is eligible.
      *
      * @example
      * To retrieve the suggested product for a cart:

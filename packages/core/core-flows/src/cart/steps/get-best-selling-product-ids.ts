@@ -21,6 +21,11 @@ export interface GetBestSellingProductIdsStepInput {
    */
   exclude_product_ids?: string[]
   /**
+   * The IDs of the only products to rank, such as the products in a cart's
+   * categories. If not set, all products are ranked.
+   */
+  include_product_ids?: string[]
+  /**
    * The number of most recent orders to count sales from.
    *
    * @defaultValue 1000
@@ -41,7 +46,8 @@ export const getBestSellingProductIdsStepId = "get-best-selling-product-ids"
 /**
  * This step ranks products by the total quantity sold across the most recent
  * orders in a sales channel, and returns their IDs from best to least selling.
- * Canceled and draft orders aren't counted. Products with the same quantity
+ * The ranking can be limited to specific products, such as the products in a
+ * cart's categories. Canceled and draft orders aren't counted. Products with the same quantity
  * sold are ordered by their ID, so the ranking is deterministic.
  *
  * @example
@@ -53,7 +59,7 @@ export const getBestSellingProductIdsStepId = "get-best-selling-product-ids"
 export const getBestSellingProductIdsStep = createStep(
   getBestSellingProductIdsStepId,
   async (data: GetBestSellingProductIdsStepInput, { container }) => {
-    if (!data.sales_channel_id) {
+    if (!data.sales_channel_id || data.include_product_ids?.length === 0) {
       return new StepResponse([] as string[])
     }
 
@@ -74,11 +80,18 @@ export const getBestSellingProductIdsStep = createStep(
     })
 
     const excludedIds = new Set(data.exclude_product_ids ?? [])
+    const includedIds = data.include_product_ids
+      ? new Set(data.include_product_ids)
+      : null
     const quantitySold = new Map<string, BigNumberInput>()
 
     for (const order of orders) {
       for (const item of order.items ?? []) {
-        if (!item?.product_id || excludedIds.has(item.product_id)) {
+        if (
+          !item?.product_id ||
+          excludedIds.has(item.product_id) ||
+          (includedIds && !includedIds.has(item.product_id))
+        ) {
           continue
         }
 
