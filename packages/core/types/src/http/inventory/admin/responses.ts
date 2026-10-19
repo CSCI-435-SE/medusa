@@ -63,3 +63,10 @@ export interface AdminBatchInventoryItemLocationLevelsResponse {
  */
 export interface AdminBatchInventoryItemsLocationLevelsResponse
   extends AdminBatchInventoryItemLocationLevelsResponse {}
+
+export interface AdminImportInventoryItemsResponse {
+  /**
+   * The number of inventory items created by the import.
+   */
+  created: number
+}

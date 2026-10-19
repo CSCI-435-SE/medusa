@@ -770,6 +770,18 @@ export function getRouteMap({
                         },
                       ],
                     },
+                    {
+                      path: "import",
+                      element: <RoutePermissionGuard />,
+                      handle: { permissions: "customer:create" },
+                      children: [
+                        {
+                          path: "",
+                          lazy: () =>
+                            import("../../routes/customers/customer-import"),
+                        },
+                      ],
+                    },
                   ],
                 },
                 {
@@ -988,6 +1000,11 @@ export function getRouteMap({
                       path: "create",
                       lazy: () =>
                         import("../../routes/inventory/inventory-create"),
+                    },
+                    {
+                      path: "import",
+                      lazy: () =>
+                        import("../../routes/inventory/inventory-import"),
                     },
                     {
                       path: "stock",

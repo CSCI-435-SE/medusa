@@ -6,6 +6,8 @@ import {
   StoreGetCustomerAddressesParams,
   StoreGetCustomerAddressParams,
   StoreGetCustomerParams,
+  StoreGetSubscriptionParams,
+  StoreGetSubscriptionsParams,
   StoreUpdateCustomer,
   StoreUpdateCustomerAddress,
 } from "./validators"
@@ -55,6 +57,26 @@ export const storeCustomerRoutesMiddlewares: MiddlewareRoute[] = [
       validateAndTransformQuery(
         StoreGetCustomerParams,
         QueryConfig.retrieveTransformQueryConfig
+      ),
+    ],
+  },
+  {
+    method: ["GET"],
+    matcher: "/store/customers/me/subscriptions",
+    middlewares: [
+      validateAndTransformQuery(
+        StoreGetSubscriptionsParams,
+        QueryConfig.listSubscriptionsTransformQueryConfig
+      ),
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/store/customers/me/subscriptions/:id/cancel",
+    middlewares: [
+      validateAndTransformQuery(
+        StoreGetSubscriptionParams,
+        QueryConfig.retrieveSubscriptionTransformQueryConfig
       ),
     ],
   },

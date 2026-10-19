@@ -14,6 +14,10 @@ import {
 import { PermissionGuard } from "../../../../../components/common/permission-guard"
 import { _DataTable } from "../../../../../components/table/data-table"
 import {
+  GroupsCell,
+  GroupsHeader,
+} from "../../../../../components/table/table-cells/customer/groups-cell"
+import {
   useCustomers,
   useDeleteCustomer,
 } from "../../../../../hooks/api/customers"
@@ -31,6 +35,9 @@ export const CustomerListTable = () => {
   const { searchParams, raw } = useCustomerTableQuery({ pageSize: PAGE_SIZE })
   const { customers, count, isLoading, isError, error } = useCustomers(
     {
+      // "+" adds the groups to the default customer fields instead of
+      // replacing them.
+      fields: "+groups.id,+groups.name",
       ...searchParams,
     },
     {
@@ -59,11 +66,18 @@ export const CustomerListTable = () => {
       <div className="flex items-center justify-between px-6 py-4">
         <Heading>{t("customers.domain")}</Heading>
         <PermissionGuard resource="customer" operation="create">
-          <Link to="/customers/create">
-            <Button size="small" variant="secondary">
-              {t("actions.create")}
-            </Button>
-          </Link>
+          <div className="flex items-center gap-x-2">
+            <Link to="/customers/import">
+              <Button size="small" variant="secondary">
+                {t("actions.import")}
+              </Button>
+            </Link>
+            <Link to="/customers/create">
+              <Button size="small" variant="secondary">
+                {t("actions.create")}
+              </Button>
+            </Link>
+          </div>
         </PermissionGuard>
       </div>
       <_DataTable
@@ -174,6 +188,10 @@ const useColumns = () => {
   return useMemo(
     () => [
       ...columns,
+      columnHelper.accessor("groups", {
+        header: () => <GroupsHeader />,
+        cell: ({ getValue }) => <GroupsCell groups={getValue()} />,
+      }),
       columnHelper.display({
         id: "actions",
         cell: ({ row }) => <CustomerActions customer={row.original} />,

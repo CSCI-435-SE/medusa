@@ -1,3 +1,4 @@
+import { SubscriptionStatus } from "@medusajs/framework/utils"
 import { z } from "@medusajs/framework/zod"
 import { AddressPayload } from "../../utils/common-validators"
 import { createFindParams, createSelectParams } from "../../utils/validators"
@@ -59,4 +60,27 @@ export type StoreCreateCustomerAddressType = z.infer<
 >
 export type StoreUpdateCustomerAddressType = z.infer<
   typeof StoreUpdateCustomerAddress
+>
+
+export const StoreGetSubscriptionParams = createSelectParams()
+
+export const StoreGetSubscriptionsParams = createFindParams({
+  offset: 0,
+  limit: 50,
+}).merge(
+  z.object({
+    status: z
+      .union([
+        z.nativeEnum(SubscriptionStatus),
+        z.array(z.nativeEnum(SubscriptionStatus)),
+      ])
+      .optional(),
+  })
+)
+
+export type StoreGetSubscriptionParamsType = z.infer<
+  typeof StoreGetSubscriptionParams
+>
+export type StoreGetSubscriptionsParamsType = z.infer<
+  typeof StoreGetSubscriptionsParams
 >

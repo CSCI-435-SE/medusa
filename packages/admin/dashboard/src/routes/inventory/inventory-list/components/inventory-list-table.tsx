@@ -64,9 +64,14 @@ export const InventoryListTable = () => {
             {t("inventory.subtitle")}
           </Text>
         </div>
-        <Button size="small" variant="secondary" asChild>
-          <Link to="create">{t("actions.create")}</Link>
-        </Button>
+        <div className="flex items-center gap-x-2">
+          <Button size="small" variant="secondary" asChild>
+            <Link to="import">{t("actions.import")}</Link>
+          </Button>
+          <Button size="small" variant="secondary" asChild>
+            <Link to="create">{t("actions.create")}</Link>
+          </Button>
+        </div>
       </div>
       <_DataTable
         table={table}

@@ -70,6 +70,11 @@ export type StoreCalculateCartTaxesType = z.infer<
 >
 export const StoreCalculateCartTaxes = createSelectParams()
 
+export type StoreGetCartSuggestedProductType = z.infer<
+  typeof StoreGetCartSuggestedProduct
+>
+export const StoreGetCartSuggestedProduct = createSelectParams()
+
 export type StoreAddCartLineItemType = z.infer<typeof StoreAddCartLineItem>
 export const StoreAddCartLineItem = z.object({
   variant_id: z.string(),

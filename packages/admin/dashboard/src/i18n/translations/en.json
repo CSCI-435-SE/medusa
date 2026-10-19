@@ -438,6 +438,34 @@
   "sales_channels": {
     "availableIn": "Available in <0>{{x}}</0> of <1>{{y}}</1> sales channels"
   },
+  "home": {
+    "domain": "Home",
+    "salesSummary": {
+      "title": "Sales overview",
+      "description": "Totals from paid orders placed in the selected period, in your store's default currency.",
+      "interval": {
+        "label": "Time period",
+        "week": "Last 7 days",
+        "month": "Last 30 days",
+        "quarter": "Last 3 months",
+        "year": "Last 12 months",
+        "custom": "Custom range",
+        "startDate": "Start date",
+        "endDate": "End date"
+      },
+      "totalRevenue": "Total revenue",
+      "orderCount": "Orders",
+      "topProducts": "Top selling products",
+      "unitsSold_one": "{{count}} unit sold",
+      "unitsSold_other": "{{count}} units sold",
+      "noOrdersHint": "No paid orders in this period",
+      "noSalesTitle": "No sales in this period",
+      "noSalesMessage": "Your best selling products will appear here once there are paid orders in this period.",
+      "noCurrencyHint": "Set a default currency in your store settings to track revenue.",
+      "errorTitle": "Sales overview unavailable",
+      "errorMessage": "We couldn't load your sales data. Try refreshing the page."
+    }
+  },
   "products": {
     "domain": "Products",
     "list": {
@@ -1007,6 +1035,24 @@
       "disablePrompt_other": "You are about to disable {{count}} location levels. This action cannot be undone.",
       "disabledToggleTooltip": "Cannot disable: clear incoming and/or reserved quantity before disabling.",
       "successToast": "Inventory levels updated successfully."
+    },
+    "import": {
+      "header": "Import Inventory",
+      "description": "Import inventory items by providing a CSV file in a pre-defined format",
+      "uploadLabel": "Upload inventory items",
+      "uploadHint": "Drag and drop a CSV file or click to upload",
+      "fileTooLarge": "The file is larger than the {{size}} upload limit",
+      "rowErrors": "No inventory items were imported. Fix these rows and try again:",
+      "successToast": "Imported {{count}} inventory items",
+      "upload": {
+        "title": "Upload a CSV file",
+        "description": "Each row creates a new inventory item with its stock at the row's location. Every row is checked first, and if any row has a problem no inventory items are imported.",
+        "importing": "Importing..."
+      },
+      "template": {
+        "title": "Unsure about how to arrange your list?",
+        "description": "Download the template below to ensure you are following the correct format."
+      }
     }
   },
   "giftCards": {
@@ -1097,6 +1143,24 @@
         "header": "Create Address",
         "hint": "Create a new address for the customer.",
         "successToast": "Address was successfully created."
+      }
+    },
+    "import": {
+      "header": "Import Customers",
+      "description": "Import customers by providing a CSV file in a pre-defined format",
+      "uploadLabel": "Upload customers",
+      "uploadHint": "Drag and drop a CSV file or click to upload",
+      "fileTooLarge": "The file is larger than the {{size}} upload limit",
+      "rowErrors": "No customers were imported. Fix these rows and try again:",
+      "successToast": "Imported {{count}} customers",
+      "upload": {
+        "title": "Upload a CSV file",
+        "description": "Each row creates a new customer. Every row is checked first, and if any row has a problem no customers are imported.",
+        "importing": "Importing..."
+      },
+      "template": {
+        "title": "Unsure about how to arrange your list?",
+        "description": "Download the template below to ensure you are following the correct format."
       }
     }
   },

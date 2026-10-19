@@ -1755,6 +1755,127 @@
       "required": ["availableIn"],
       "additionalProperties": false
     },
+    "home": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "salesSummary": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "interval": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "week": {
+                  "type": "string"
+                },
+                "month": {
+                  "type": "string"
+                },
+                "quarter": {
+                  "type": "string"
+                },
+                "year": {
+                  "type": "string"
+                },
+                "custom": {
+                  "type": "string"
+                },
+                "startDate": {
+                  "type": "string"
+                },
+                "endDate": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "week",
+                "month",
+                "quarter",
+                "year",
+                "custom",
+                "startDate",
+                "endDate"
+              ],
+              "additionalProperties": false
+            },
+            "totalRevenue": {
+              "type": "string"
+            },
+            "orderCount": {
+              "type": "string"
+            },
+            "topProducts": {
+              "type": "string"
+            },
+            "unitsSold_zero": {
+              "type": "string"
+            },
+            "unitsSold_one": {
+              "type": "string"
+            },
+            "unitsSold_two": {
+              "type": "string"
+            },
+            "unitsSold_few": {
+              "type": "string"
+            },
+            "unitsSold_many": {
+              "type": "string"
+            },
+            "unitsSold_other": {
+              "type": "string"
+            },
+            "noOrdersHint": {
+              "type": "string"
+            },
+            "noSalesTitle": {
+              "type": "string"
+            },
+            "noSalesMessage": {
+              "type": "string"
+            },
+            "noCurrencyHint": {
+              "type": "string"
+            },
+            "errorTitle": {
+              "type": "string"
+            },
+            "errorMessage": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "description",
+            "interval",
+            "totalRevenue",
+            "orderCount",
+            "topProducts",
+            "noOrdersHint",
+            "noSalesTitle",
+            "noSalesMessage",
+            "noCurrencyHint",
+            "errorTitle",
+            "errorMessage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["domain", "salesSummary"],
+      "additionalProperties": false
+    },
     "products": {
       "type": "object",
       "properties": {
@@ -3955,6 +4076,73 @@
             "successToast"
           ],
           "additionalProperties": false
+        },
+        "import": {
+          "type": "object",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "uploadLabel": {
+              "type": "string"
+            },
+            "uploadHint": {
+              "type": "string"
+            },
+            "fileTooLarge": {
+              "type": "string"
+            },
+            "rowErrors": {
+              "type": "string"
+            },
+            "successToast": {
+              "type": "string"
+            },
+            "upload": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "importing": {
+                  "type": "string"
+                }
+              },
+              "required": ["title", "description", "importing"],
+              "additionalProperties": false
+            },
+            "template": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": ["title", "description"],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "header",
+            "description",
+            "uploadLabel",
+            "uploadHint",
+            "fileTooLarge",
+            "rowErrors",
+            "successToast",
+            "upload",
+            "template"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -3974,7 +4162,8 @@
         "reservation",
         "adjustInventory",
         "toast",
-        "stock"
+        "stock",
+        "import"
       ],
       "additionalProperties": false
     },
@@ -4293,6 +4482,73 @@
           },
           "required": ["title", "fields", "create"],
           "additionalProperties": false
+        },
+        "import": {
+          "type": "object",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "uploadLabel": {
+              "type": "string"
+            },
+            "uploadHint": {
+              "type": "string"
+            },
+            "fileTooLarge": {
+              "type": "string"
+            },
+            "rowErrors": {
+              "type": "string"
+            },
+            "successToast": {
+              "type": "string"
+            },
+            "upload": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "importing": {
+                  "type": "string"
+                }
+              },
+              "required": ["title", "description", "importing"],
+              "additionalProperties": false
+            },
+            "template": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": ["title", "description"],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "header",
+            "description",
+            "uploadLabel",
+            "uploadHint",
+            "fileTooLarge",
+            "rowErrors",
+            "successToast",
+            "upload",
+            "template"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -4306,7 +4562,8 @@
         "registered",
         "guest",
         "hasAccount",
-        "addresses"
+        "addresses",
+        "import"
       ],
       "additionalProperties": false
     },
@@ -14297,6 +14554,7 @@
     "addresses",
     "email",
     "transferOwnership",
+    "home",
     "sales_channels",
     "products",
     "collections",

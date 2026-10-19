@@ -4,6 +4,7 @@ import {
   CogSixTooth,
   CurrencyDollar,
   EllipsisHorizontal,
+  House,
   MagnifyingGlass,
   OpenRectArrowOut,
   ReceiptPercent,
@@ -182,6 +183,13 @@ const useCoreRoutes = (): Omit<INavItem, "pathname">[] => {
   const { t } = useTranslation()
 
   return [
+    // Home shows the sales overview (issue #42). It is listed first so it is
+    // the natural landing spot when navigating back from other pages.
+    {
+      icon: <House />,
+      label: t("home.domain"),
+      to: "/",
+    },
     {
       icon: <ShoppingCart />,
       label: t("orders.domain"),

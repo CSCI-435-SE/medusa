@@ -15,6 +15,7 @@ import {
   StoreCalculateCartTaxes,
   StoreCreateCart,
   StoreGetCartsCart,
+  StoreGetCartSuggestedProduct,
   StoreRemoveCartPromotions,
   StoreUpdateCart,
   StoreUpdateCartCustomer,
@@ -108,6 +109,16 @@ export const storeCartRoutesMiddlewares: MiddlewareRoute[] = [
       validateAndTransformQuery(
         StoreGetCartsCart,
         QueryConfig.retrieveTransformQueryConfig
+      ),
+    ],
+  },
+  {
+    method: ["GET"],
+    matcher: "/store/carts/:id/suggested-product",
+    middlewares: [
+      validateAndTransformQuery(
+        StoreGetCartSuggestedProduct,
+        QueryConfig.retrieveSuggestedProductTransformQueryConfig
       ),
     ],
   },

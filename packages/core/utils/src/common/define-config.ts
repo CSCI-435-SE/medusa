@@ -270,6 +270,7 @@ function resolveModules(
     { resolve: MODULE_PACKAGE_NAMES[Modules.PAYMENT] },
     { resolve: MODULE_PACKAGE_NAMES[Modules.ORDER] },
     { resolve: MODULE_PACKAGE_NAMES[Modules.SETTINGS] },
+    { resolve: MODULE_PACKAGE_NAMES[Modules.SUBSCRIPTION] },
 
     {
       resolve: MODULE_PACKAGE_NAMES[Modules.TRANSLATION],

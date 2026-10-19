@@ -104,6 +104,7 @@
     "@medusajs/settings": "2.17.2",
     "@medusajs/stock-location": "2.17.2",
     "@medusajs/store": "2.17.2",
+    "@medusajs/subscription": "2.17.2",
     "@medusajs/tax": "2.17.2",
     "@medusajs/telemetry": "2.17.2",
     "@medusajs/translation": "2.17.2",

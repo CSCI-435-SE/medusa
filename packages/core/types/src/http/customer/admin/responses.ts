@@ -35,3 +35,10 @@ export type AdminCustomerAddressDeleteResponse = DeleteResponseWithParent<
   "customer_address",
   AdminCustomer
 >
+
+export interface AdminImportCustomersResponse {
+  /**
+   * The number of customers created by the import.
+   */
+  created: number
+}

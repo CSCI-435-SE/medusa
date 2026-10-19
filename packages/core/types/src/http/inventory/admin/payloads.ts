@@ -175,3 +175,14 @@ export interface AdminBatchInventoryItemsLocationLevels {
   force?: boolean
 }
 
+export interface AdminImportInventoryItemsRequest {
+  /**
+   * The CSV file to import the inventory items from, with the columns
+   * Title, SKU, Requires Shipping, Stocked Quantity, Location, Description,
+   * Width, Length, Height, Weight, MID Code, HS Code, Country of Origin
+   * and Material.
+   *
+   * It's an uploaded file of type [File](https://developer.mozilla.org/en-US/docs/Web/API/File).
+   */
+  file: File
+}

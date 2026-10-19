@@ -331,7 +331,9 @@ export const NavItem = ({
       isSetting?: boolean
     }) => {
       if (["core", "setting"].includes(type)) {
-        isActive = pathname.startsWith(to)
+        // Every path starts with "/", so the home link must match exactly,
+        // otherwise it would be highlighted on every page.
+        isActive = to === "/" ? pathname === "/" : pathname.startsWith(to)
       }
 
       return clx(BASE_NAV_LINK_CLASSES, {
