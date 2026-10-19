@@ -24,6 +24,8 @@ export const CustomerExport = () => {
 
 const CustomerExportContent = () => {
   const { t } = useTranslation()
+  // The list's Export link forwards its query string, so this reads the same
+  // filters and search that are applied to the customer list.
   const { searchParams } = useCustomerTableQuery({})
 
   const { mutateAsync } = useExportCustomers(searchParams)
@@ -32,6 +34,9 @@ const CustomerExportContent = () => {
   const handleExportRequest = async () => {
     await mutateAsync(searchParams, {
       onSuccess: () => {
+        // The export runs in a background workflow, so the response only
+        // contains its transaction ID. The CSV's download URL arrives later as
+        // a notification.
         toast.info(t("customers.export.success.title"), {
           description: t("customers.export.success.description"),
         })
