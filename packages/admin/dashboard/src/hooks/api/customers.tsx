@@ -281,7 +281,7 @@ export const useCustomerAddress = (
 export const useExportCustomers = (
   query?: HttpTypes.AdminCustomerFilters,
   options?: UseMutationOptions<
-    { transaction_id: string },
+    HttpTypes.AdminExportCustomersResponse,
     FetchError,
     HttpTypes.AdminCustomerFilters
   >

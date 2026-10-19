@@ -42,3 +42,10 @@ export interface AdminImportCustomersResponse {
    */
   created: number
 }
+
+export interface AdminExportCustomersResponse {
+  /**
+   * The ID of the export customers workflow's transaction.
+   */
+  transaction_id: string
+}
