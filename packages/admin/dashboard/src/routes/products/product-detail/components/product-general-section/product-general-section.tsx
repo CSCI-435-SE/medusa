@@ -1,8 +1,15 @@
 import { GlobeEurope, PencilSquare, Trash } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
-import { Container, Heading, StatusBadge, toast, usePrompt } from "@medusajs/ui"
+import {
+  Button,
+  Container,
+  Heading,
+  StatusBadge,
+  toast,
+  usePrompt,
+} from "@medusajs/ui"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import { ActionMenu } from "../../../../../components/common/action-menu"
 import { SectionRow } from "../../../../../components/common/section"
@@ -76,6 +83,12 @@ export const ProductGeneralSection = ({
           <StatusBadge color={productStatusColor(product.status)}>
             {t(`products.productStatus.${product.status}`)}
           </StatusBadge>
+          {/* Entry point for the full edit flow (opens the `edit-all` child
+              route). The ellipsis menu below keeps the quick single-section
+              "Edit" drawer. */}
+          <Button size="small" variant="secondary" asChild>
+            <Link to="edit-all">{t("products.edit.full.button")}</Link>
+          </Button>
           <ActionMenu
             groups={[
               {

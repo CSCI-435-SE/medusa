@@ -474,7 +474,13 @@
     "edit": {
       "header": "Edit Product",
       "description": "Edit the product details.",
-      "successToast": "Product {{title}} was successfully updated."
+      "successToast": "Product {{title}} was successfully updated.",
+      "full": {
+        "button": "Edit Product",
+        "title": "Edit Product",
+        "description": "Edit all of the product's details in one flow.",
+        "errorToast": "Some changes could not be saved. Review the product and try again."
+      }
     },
     "create": {
       "title": "Create Product",
