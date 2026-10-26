@@ -8,6 +8,7 @@ import {
 } from "@medusajs/framework/http"
 
 import { AdditionalData, HttpTypes } from "@medusajs/framework/types"
+import { MedusaError } from "@medusajs/framework/utils"
 import { refetchEntity } from "@medusajs/framework/http"
 import {
   remapKeysForProduct,
@@ -70,9 +71,24 @@ export const DELETE = async (
   const productId = req.params.id
   const variantId = req.params.variant_id
 
-  // TODO: I believe here we cannot even enforce the product ID based on the standard API we provide?
+  const existingVariant = await refetchEntity({
+    entity: "variant",
+    idOrFilter: { id: variantId, product_id: productId },
+    scope: req.scope,
+    fields: ["id"],
+  })
+  /**
+   * Make sure the variant belongs to the product in the URL before deleting it.
+   */
+  if (!existingVariant) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_FOUND,
+      `Variant with id "${variantId}" not found for product "${productId}"`
+    )
+  }
+
   await deleteProductVariantsWorkflow(req.scope).run({
-    input: { ids: [variantId] /* product_id: productId */ },
+    input: { ids: [variantId] },
   })
 
   const product = await refetchEntity({
