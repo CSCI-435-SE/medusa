@@ -121,6 +121,7 @@ medusaIntegrationTestRunner({
         expect(res.response.status).toBe(400)
         expect(res.response.data).toEqual({
           type: "not_allowed",
+          code: "insufficient_inventory",
           message: `Not enough stock available for item ${inventoryItem1.id} at location ${stockLocation1.id}`,
         })
       })
@@ -162,6 +163,7 @@ medusaIntegrationTestRunner({
         expect(res.response.status).toBe(400)
         expect(res.response.data).toEqual({
           type: "not_allowed",
+          code: "insufficient_inventory",
           message: `Not enough stock available for item ${inventoryItem1.id} at location ${stockLocation1.id}`,
         })
       })
