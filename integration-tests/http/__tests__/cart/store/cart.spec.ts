@@ -3071,6 +3071,195 @@ medusaIntegrationTestRunner({
               )
             })
           })
+
+          describe("with out of stock inventory", () => {
+            let stockLocation, inventoryItem, product, cart
+
+            beforeEach(async () => {
+              stockLocation = (
+                await api.post(
+                  `/admin/stock-locations`,
+                  { name: "test location" },
+                  adminHeaders
+                )
+              ).data.stock_location
+
+              inventoryItem = (
+                await api.post(
+                  `/admin/inventory-items`,
+                  { sku: "last-unit" },
+                  adminHeaders
+                )
+              ).data.inventory_item
+
+              await api.post(
+                `/admin/inventory-items/${inventoryItem.id}/location-levels`,
+                {
+                  location_id: stockLocation.id,
+                  stocked_quantity: 1,
+                },
+                adminHeaders
+              )
+
+              await api.post(
+                `/admin/stock-locations/${stockLocation.id}/sales-channels`,
+                { add: [salesChannel.id] },
+                adminHeaders
+              )
+
+              product = (
+                await api.post(
+                  "/admin/products",
+                  {
+                    title: `Test fixture ${shippingProfile.id}`,
+                    status: ProductStatus.PUBLISHED,
+                    shipping_profile_id: shippingProfile.id,
+                    options: [{ title: "size", values: ["one-size"] }],
+                    variants: [
+                      {
+                        title: "one-size",
+                        sku: "last-unit",
+                        inventory_items: [
+                          {
+                            inventory_item_id: inventoryItem.id,
+                            required_quantity: 1,
+                          },
+                        ],
+                        prices: [
+                          {
+                            currency_code: "usd",
+                            amount: 100,
+                          },
+                        ],
+                        options: {
+                          size: "one-size",
+                        },
+                      },
+                    ],
+                  },
+                  adminHeaders
+                )
+              ).data.product
+
+              cart = (
+                await api.post(
+                  `/store/carts`,
+                  {
+                    currency_code: "usd",
+                    sales_channel_id: salesChannel.id,
+                    region_id: region.id,
+                    shipping_address: shippingAddressData,
+                    items: [
+                      { variant_id: product.variants[0].id, quantity: 1 },
+                    ],
+                  },
+                  storeHeadersWithCustomer
+                )
+              ).data.cart
+
+              const fulfillmentSets = (
+                await api.post(
+                  `/admin/stock-locations/${stockLocation.id}/fulfillment-sets?fields=*fulfillment_sets`,
+                  {
+                    name: `Test-inventory`,
+                    type: "test-type",
+                  },
+                  adminHeaders
+                )
+              ).data.stock_location.fulfillment_sets
+
+              const fulfillmentSet = (
+                await api.post(
+                  `/admin/fulfillment-sets/${fulfillmentSets[0].id}/service-zones`,
+                  {
+                    name: `Test-inventory`,
+                    geo_zones: [{ type: "country", country_code: "US" }],
+                  },
+                  adminHeaders
+                )
+              ).data.fulfillment_set
+
+              await api.post(
+                `/admin/stock-locations/${stockLocation.id}/fulfillment-providers`,
+                { add: ["manual_test-provider"] },
+                adminHeaders
+              )
+
+              const shippingOption = (
+                await api.post(
+                  `/admin/shipping-options`,
+                  {
+                    name: `Test shipping option ${fulfillmentSet.id}`,
+                    service_zone_id: fulfillmentSet.service_zones[0].id,
+                    shipping_profile_id: shippingProfile.id,
+                    provider_id: "manual_test-provider",
+                    price_type: "flat",
+                    type: {
+                      label: "Test type",
+                      description: "Test description",
+                      code: "test-code",
+                    },
+                    prices: [{ currency_code: "usd", amount: 1000 }],
+                    rules: [],
+                  },
+                  adminHeaders
+                )
+              ).data.shipping_option
+
+              await api.post(
+                `/store/carts/${cart.id}/shipping-methods`,
+                { option_id: shippingOption.id },
+                storeHeaders
+              )
+
+              const paymentCollection = (
+                await api.post(
+                  `/store/payment-collections`,
+                  { cart_id: cart.id },
+                  storeHeaders
+                )
+              ).data.payment_collection
+
+              await api.post(
+                `/store/payment-collections/${paymentCollection.id}/payment-sessions`,
+                { provider_id: "pp_system_default" },
+                storeHeaders
+              )
+            })
+
+            it("should return the cart with an inventory error when an item sells out before completion", async () => {
+              await api.post(
+                `/admin/inventory-items/${inventoryItem.id}/location-levels/${stockLocation.id}`,
+                { stocked_quantity: 0 },
+                adminHeaders
+              )
+
+              const response = await api.post(
+                `/store/carts/${cart.id}/complete`,
+                {},
+                storeHeaders
+              )
+
+              expect(response.status).toEqual(200)
+              expect(response.data).toEqual({
+                type: "cart",
+                cart: expect.objectContaining({
+                  id: cart.id,
+                  items: [
+                    expect.objectContaining({
+                      variant_id: product.variants[0].id,
+                      quantity: 1,
+                    }),
+                  ],
+                }),
+                error: {
+                  message: `Not enough stock available for item ${inventoryItem.id} at location ${stockLocation.id}`,
+                  name: expect.any(String),
+                  type: "not_allowed",
+                },
+              })
+            })
+          })
         })
 
         it("should preserve tax line data field on order after cart completion", async () => {
