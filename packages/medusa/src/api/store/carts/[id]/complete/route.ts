@@ -37,13 +37,16 @@ export const POST = async (
   if (errors?.[0]) {
     const error = errors[0].error
     const statusOKErrors: string[] = [
-      // TODO: add inventory specific errors
       MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR,
       MedusaError.Types.PAYMENT_REQUIRES_MORE_ERROR,
     ]
+    // Inventory errors are NOT_ALLOWED, which other steps also throw, so they are matched by code
+    const statusOKErrorCodes: string[] = [
+      MedusaError.Codes.INSUFFICIENT_INVENTORY,
+    ]
 
-    // If we end up with errors outside of statusOKErrors, it means that the cart is not in a state to be
-    // completed. In these cases, we return a 400.
+    // If we end up with errors outside of statusOKErrors and statusOKErrorCodes, it means that the cart
+    // is not in a state to be completed. In these cases, we return a 400.
     const cartReq = await prepareRetrieveQuery(
       {},
       {
@@ -57,7 +60,10 @@ export const POST = async (
       cartReq.remoteQueryConfig.fields
     )
 
-    if (!statusOKErrors.includes(error?.type)) {
+    if (
+      !statusOKErrors.includes(error?.type) &&
+      !statusOKErrorCodes.includes(error?.code)
+    ) {
       throw error
     }
 
