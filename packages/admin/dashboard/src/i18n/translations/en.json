@@ -144,6 +144,7 @@
     "reset": "Reset",
     "confirm": "Confirm",
     "edit": "Edit",
+    "duplicate": "Duplicate",
     "addItems": "Add items",
     "download": "Download",
     "clear": "Clear",
@@ -470,6 +471,12 @@
     "domain": "Products",
     "list": {
       "noRecordsMessage": "Create your first product to start selling."
+    },
+    "duplicate": {
+      "header": "Duplicate Product",
+      "description": "Create a draft copy of this product with its options, variants, prices and images. Give the copy its own name.",
+      "titleMustChange": "Choose a new product name",
+      "successToast": "Product {{title}} was successfully created as a draft."
     },
     "edit": {
       "header": "Edit Product",

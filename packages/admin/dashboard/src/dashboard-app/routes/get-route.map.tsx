@@ -87,6 +87,11 @@ export function getRouteMap({
                             import("../../routes/products/product-edit"),
                         },
                         {
+                          path: "duplicate",
+                          lazy: () =>
+                            import("../../routes/products/product-duplicate"),
+                        },
+                        {
                           path: "edit-variant",
                           lazy: () =>
                             import(

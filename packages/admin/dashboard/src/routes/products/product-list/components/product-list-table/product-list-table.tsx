@@ -1,4 +1,9 @@
-import { GlobeEurope, PencilSquare, Trash } from "@medusajs/icons"
+import {
+  GlobeEurope,
+  PencilSquare,
+  SquareTwoStack,
+  Trash,
+} from "@medusajs/icons"
 import { Button, Container, Heading, toast, usePrompt } from "@medusajs/ui"
 import { keepPreviousData } from "@tanstack/react-query"
 import { createColumnHelper } from "@tanstack/react-table"
@@ -144,6 +149,11 @@ const ProductActions = ({ product }: { product: HttpTypes.AdminProduct }) => {
               icon: <PencilSquare />,
               label: t("actions.edit"),
               to: `/products/${product.id}/edit`,
+            },
+            {
+              icon: <SquareTwoStack />,
+              label: t("actions.duplicate"),
+              to: `/products/${product.id}/duplicate`,
             },
           ],
         },

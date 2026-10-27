@@ -277,6 +277,16 @@ export const CreateProduct = z
 
 export const AdminCreateProduct = WithAdditionalData(CreateProduct)
 
+export type AdminDuplicateProductType = z.infer<typeof DuplicateProduct>
+export const DuplicateProduct = z
+  .object({
+    title: z.string().trim().min(1).max(255),
+    handle: z.string().trim().min(1),
+  })
+  .strict()
+
+export const AdminDuplicateProduct = WithAdditionalData(DuplicateProduct)
+
 export type AdminUpdateProductType = z.infer<typeof UpdateProduct>
 export const UpdateProduct = z
   .object({

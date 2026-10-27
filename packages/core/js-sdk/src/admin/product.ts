@@ -347,6 +347,43 @@ export class Product {
   }
 
   /**
+   * This method duplicates a product, including its options, variants, prices and relations.
+   * The copy is always a draft, and SKU, barcode, EAN and UPC are left empty on its variants.
+   * It sends a request to the Duplicate Product API route.
+   *
+   * @param id - The ID of the product to duplicate.
+   * @param body - The title and handle of the new product.
+   * @param query - Configure the fields to retrieve in the new product.
+   * @param headers - Headers to pass in the request.
+   * @returns The new product's details.
+   *
+   * @example
+   * sdk.admin.product.duplicate("prod_123", {
+   *   title: "Classic Tee - Long Sleeve",
+   *   handle: "classic-tee-long-sleeve",
+   * })
+   * .then(({ product }) => {
+   *   console.log(product)
+   * })
+   */
+  async duplicate(
+    id: string,
+    body: HttpTypes.AdminDuplicateProduct,
+    query?: SelectParams,
+    headers?: ClientHeaders
+  ) {
+    return await this.client.fetch<HttpTypes.AdminProductResponse>(
+      `/admin/products/${id}/duplicate`,
+      {
+        method: "POST",
+        headers,
+        body,
+        query,
+      }
+    )
+  }
+
+  /**
    * This method updates a product. It sends a request to the
    * [Update Product](https://docs.medusajs.com/api/admin#products_postproductsid)
    * API route.
