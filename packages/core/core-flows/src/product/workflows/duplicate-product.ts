@@ -14,12 +14,6 @@ import { useQueryGraphStep } from "../../common"
 import { createProductsWorkflow } from "./create-products"
 
 /**
- * The suffix the dashboard pre-fills in the duplicate dialog. A copy must never
- * be saved with it, because store owners should give the copy a real name.
- */
-const COPY_SUFFIX_REGEX = /\(copy\)\s*$/i
-
-/**
  * The fields read from the source product. Everything the duplicate needs is
  * fetched in one query, including nested options, variants and prices.
  */
@@ -84,7 +78,7 @@ export type DuplicateProductWorkflowInput = {
    */
   id: string
   /**
-   * The title of the new product. It must differ from the original title.
+   * The title of the new product.
    */
   title: string
   /**
@@ -100,15 +94,11 @@ export interface ValidateDuplicateProductStepInput {
   /**
    * The products matching the requested ID (empty if it does not exist).
    */
-  source: { id: string; title: string; handle: string }[]
+  source: { id: string }[]
   /**
    * The products already using the requested handle.
    */
   handleConflicts: { id: string }[]
-  /**
-   * The requested title for the copy.
-   */
-  title: string
   /**
    * The requested handle for the copy.
    */
@@ -118,9 +108,8 @@ export interface ValidateDuplicateProductStepInput {
 const validateDuplicateProductStepId = "validate-duplicate-product"
 /**
  * This step validates a duplicate request. It throws if the source product is
- * missing, if the title was not changed (or still ends with "(Copy)"), or if
- * the handle is already used by another product. Running it before anything is
- * created means a failed validation leaves no data behind.
+ * missing or if the handle is already used by another product. Running it
+ * before anything is created means a failed validation leaves no data behind.
  */
 export const validateDuplicateProductStep = createStep(
   validateDuplicateProductStepId,
@@ -131,20 +120,6 @@ export const validateDuplicateProductStep = createStep(
       throw new MedusaError(
         MedusaError.Types.NOT_FOUND,
         "Product to duplicate was not found"
-      )
-    }
-
-    const title = data.title.trim()
-
-    // Owner requirement: the copy needs a real name of its own.
-    if (
-      !title ||
-      title.toLowerCase() === source.title.trim().toLowerCase() ||
-      COPY_SUFFIX_REGEX.test(title)
-    ) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        `The duplicated product needs a new title. It cannot be empty, match the original title, or end with "(Copy)".`
       )
     }
 
@@ -305,7 +280,6 @@ export const duplicateProductWorkflow = createWorkflow(
     validateDuplicateProductStep({
       source,
       handleConflicts,
-      title: input.title,
       handle: input.handle,
     })
 

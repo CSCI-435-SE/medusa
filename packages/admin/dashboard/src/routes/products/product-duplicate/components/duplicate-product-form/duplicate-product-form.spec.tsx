@@ -44,7 +44,6 @@ vi.mock("react-i18next", () => ({
         "fields.handle": "Handle",
         "actions.cancel": "Cancel",
         "actions.duplicate": "Duplicate",
-        "products.duplicate.titleMustChange": "Choose a new product name",
       }
       return labels[key] ?? key
     },
@@ -99,36 +98,25 @@ describe("DuplicateProductForm", () => {
     ).toEqual("classic-tee-copy")
   })
 
-  it("keeps Duplicate disabled until the title is changed", async () => {
+  it("submits the pre-filled title and handle without changes", async () => {
+    mutateAsync.mockResolvedValue({})
     const user = userEvent.setup()
     renderForm()
 
+    // The pre-filled values are valid as they are: no rename is required.
     const button = screen.getByRole("button", { name: "Duplicate" })
-    await waitFor(() =>
-      expect((button as HTMLButtonElement).disabled).toBe(true)
-    )
-
-    const title = screen.getByRole("textbox", { name: "Title" })
-    await user.clear(title)
-    await user.type(title, "Classic Tee - Long Sleeve")
+    expect((button as HTMLButtonElement).disabled).toBe(false)
+    await user.click(button)
 
     await waitFor(() =>
-      expect((button as HTMLButtonElement).disabled).toBe(false)
+      expect(mutateAsync).toHaveBeenCalledWith(
+        { title: "Classic Tee (Copy)", handle: "classic-tee-copy" },
+        expect.any(Object)
+      )
     )
   })
 
-  it("rejects the original title and a '(Copy)' suffix", async () => {
-    const user = userEvent.setup()
-    renderForm()
-
-    const title = screen.getByRole("textbox", { name: "Title" })
-
-    await user.clear(title)
-    await user.type(title, "Classic Tee")
-    expect(await screen.findByText("Choose a new product name")).toBeTruthy()
-  })
-
-  it("submits the new title and handle", async () => {
+  it("submits an edited title and handle", async () => {
     mutateAsync.mockResolvedValue({})
     const user = userEvent.setup()
     renderForm()
@@ -137,17 +125,32 @@ describe("DuplicateProductForm", () => {
     await user.clear(title)
     await user.type(title, "Classic Tee - Long Sleeve")
 
-    const button = screen.getByRole("button", { name: "Duplicate" })
-    await waitFor(() =>
-      expect((button as HTMLButtonElement).disabled).toBe(false)
-    )
-    await user.click(button)
+    const handle = screen.getByRole("textbox", { name: "Handle" })
+    await user.clear(handle)
+    await user.type(handle, "classic-tee-long-sleeve")
+
+    await user.click(screen.getByRole("button", { name: "Duplicate" }))
 
     await waitFor(() =>
       expect(mutateAsync).toHaveBeenCalledWith(
-        { title: "Classic Tee - Long Sleeve", handle: "classic-tee-copy" },
+        {
+          title: "Classic Tee - Long Sleeve",
+          handle: "classic-tee-long-sleeve",
+        },
         expect.any(Object)
       )
     )
+  })
+
+  it("does not submit when the title is emptied", async () => {
+    const user = userEvent.setup()
+    renderForm()
+
+    await user.clear(screen.getByRole("textbox", { name: "Title" }))
+    await user.click(screen.getByRole("button", { name: "Duplicate" }))
+
+    // Give the form a chance to (incorrectly) submit before asserting.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(mutateAsync).not.toHaveBeenCalled()
   })
 })

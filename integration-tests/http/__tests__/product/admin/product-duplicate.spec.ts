@@ -229,22 +229,38 @@ medusaIntegrationTestRunner({
         expect(after).toEqual(before)
       })
 
-      it("requires a new title (unchanged or '(Copy)' titles are rejected)", async () => {
+      it("accepts the pre-filled '(Copy)' title and handle as they are", async () => {
+        // No rename is required: the dashboard pre-fills these values and
+        // the owner may keep them.
+        const response = await api.post(
+          `/admin/products/${original.id}/duplicate`,
+          { title: "Classic Tee (Copy)", handle: "classic-tee-copy" },
+          adminHeaders
+        )
+
+        expect(response.status).toEqual(200)
+        expect(response.data.product).toEqual(
+          expect.objectContaining({
+            title: "Classic Tee (Copy)",
+            handle: "classic-tee-copy",
+            status: "draft",
+          })
+        )
+      })
+
+      it("rejects an empty title", async () => {
         const before = (await api.get("/admin/products", adminHeaders)).data
           .count
 
-        for (const title of ["Classic Tee", "Classic Tee (Copy)"]) {
-          const error = await api
-            .post(
-              `/admin/products/${original.id}/duplicate`,
-              { title, handle: "classic-tee-new" },
-              adminHeaders
-            )
-            .catch((e) => e)
+        const error = await api
+          .post(
+            `/admin/products/${original.id}/duplicate`,
+            { title: "", handle: "classic-tee-new" },
+            adminHeaders
+          )
+          .catch((e) => e)
 
-          expect(error.response.status).toEqual(400)
-          expect(error.response.data.message).toContain("new title")
-        }
+        expect(error.response.status).toEqual(400)
 
         const after = (await api.get("/admin/products", adminHeaders)).data
           .count

@@ -418,8 +418,7 @@ export interface AdminBatchUpdateProductVariant
 
 export interface AdminDuplicateProduct {
   /**
-   * The title of the new product. It must differ from the original product's title
-   * and can't end with "(Copy)".
+   * The title of the new product.
    */
   title: string
   /**

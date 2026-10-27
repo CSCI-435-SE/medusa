@@ -474,8 +474,7 @@
     },
     "duplicate": {
       "header": "Duplicate Product",
-      "description": "Create a draft copy of this product with its options, variants, prices and images. Give the copy its own name.",
-      "titleMustChange": "Choose a new product name",
+      "description": "Create a draft copy of this product with its options, variants, prices and images.",
       "successToast": "Product {{title}} was successfully created as a draft."
     },
     "edit": {

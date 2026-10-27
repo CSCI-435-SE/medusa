@@ -1904,19 +1904,11 @@
             "description": {
               "type": "string"
             },
-            "titleMustChange": {
-              "type": "string"
-            },
             "successToast": {
               "type": "string"
             }
           },
-          "required": [
-            "header",
-            "description",
-            "titleMustChange",
-            "successToast"
-          ],
+          "required": ["header", "description", "successToast"],
           "additionalProperties": false
         },
         "edit": {
