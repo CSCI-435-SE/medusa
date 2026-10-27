@@ -479,7 +479,10 @@
         "button": "Edit Product",
         "title": "Edit Product",
         "description": "Edit all of the product's details in one flow.",
-        "errorToast": "Some changes could not be saved. Review the product and try again."
+        "errorToast": "Some changes could not be saved. Review the product and try again.",
+        "optionInUse": "This option is already used by the product's variants and can't be removed.",
+        "valueInUse": "Can't remove {{values}} while variants still use it. Uncheck those variants first, then remove the value.",
+        "variantsTip": "Drag to reorder. Uncheck an existing variant to delete it when you save. New combinations are added as new variants."
       }
     },
     "create": {

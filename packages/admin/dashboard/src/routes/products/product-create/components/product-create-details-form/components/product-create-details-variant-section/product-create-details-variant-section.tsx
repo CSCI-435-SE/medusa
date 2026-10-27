@@ -7,6 +7,7 @@ import {
   InlineTip,
   Label,
   Text,
+  toast,
 } from "@medusajs/ui"
 import {
   FieldArrayWithId,
@@ -15,13 +16,14 @@ import {
   useWatch,
 } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { Form } from "../../../../../../../components/common/form"
 import { SortableList } from "../../../../../../../components/common/sortable-list"
 import { SwitchBox } from "../../../../../../../components/common/switch-box"
 import { ChipInput } from "../../../../../../../components/inputs/chip-input"
 import { Combobox } from "../../../../../../../components/inputs/combobox"
+import { mergeVariantCombinations } from "../../../../merge-variants"
 import { ProductCreateSchemaType } from "../../../../types"
 import { decorateVariantsWithDefaultValues } from "../../../../utils"
 import { productOptionsQueryKeys } from "../../../../../../../hooks/api"
@@ -31,6 +33,18 @@ import { AdminProductOption, HttpTypes } from "@medusajs/types"
 
 type ProductCreateVariantsSectionProps = {
   form: UseFormReturn<ProductCreateSchemaType>
+  /**
+   * "create" (default) is the original behavior: any option change regenerates
+   * every variant from scratch.
+   *
+   * "edit" is used by the full Edit Product flow, where variants already exist.
+   * Changes are merged into the existing variants instead of replacing them
+   * (see `mergeVariantCombinations`), the "enable variants" switch is hidden,
+   * and removing something that saved variants still depend on is blocked,
+   * because the backend refuses to unlink an option or value that a variant
+   * uses.
+   */
+  mode?: "create" | "edit"
 }
 
 type ProductOptionFormValue = {
@@ -76,19 +90,41 @@ const getVariantName = (options: Record<string, string>) => {
 
 export const ProductCreateVariantsSection = ({
   form,
+  mode = "create",
 }: ProductCreateVariantsSectionProps) => {
   const { t } = useTranslation()
+  const isEdit = mode === "edit"
+
+  // In edit mode, the options that were already saved on the product when the
+  // form opened. Captured once; these are the only options that cannot be
+  // removed (a newly picked, unsaved option can still be removed freely).
+  const storedOptionIds = useRef(
+    new Set(
+      isEdit
+        ? form
+            .getValues("options")
+            .map((opt) => opt.id)
+            .filter((id): id is string => !!id)
+        : []
+    )
+  )
+
+  // Edit mode needs to mark the form dirty when options/variants are changed
+  // programmatically, otherwise the "unsaved changes" prompt would not appear.
+  const setValueOptions = isEdit ? { shouldDirty: true } : undefined
 
   const variants = useFieldArray({
     control: form.control,
     name: "variants",
   })
 
-  const watchedAreVariantsEnabled = useWatch({
+  const watchedEnableVariants = useWatch({
     control: form.control,
     name: "enable_variants",
     defaultValue: false,
   })
+  // An existing product always shows the builder; the switch would wipe it.
+  const watchedAreVariantsEnabled = isEdit || watchedEnableVariants
 
   const watchedOptions = useWatch({
     control: form.control,
@@ -132,9 +168,31 @@ export const ProductCreateVariantsSection = ({
   // Accumulating (rather than reading only the current page) keeps a selected
   // option's values available even if a later search filters it out of the
   // current results.
-  const [optionDetailsById, setOptionDetailsById] = useState(
-    () => new Map<string, AdminProductOption>()
-  )
+  const [optionDetailsById, setOptionDetailsById] = useState(() => {
+    const details = new Map<string, AdminProductOption>()
+
+    // In edit mode the picker list below only contains global (non-exclusive)
+    // options, so an option that belongs exclusively to this product would have
+    // no details and its values could not be resolved. Seed the map from the
+    // options already in the form (id/title/values/value_ids).
+    if (isEdit) {
+      form.getValues("options").forEach((opt) => {
+        if (opt.id) {
+          details.set(opt.id, {
+            id: opt.id,
+            title: opt.title,
+            values: (opt.values ?? []).map((value, rank) => ({
+              id: opt.value_ids?.[rank] ?? value,
+              value,
+              rank,
+            })),
+          } as unknown as AdminProductOption)
+        }
+      })
+    }
+
+    return details
+  })
 
   useEffect(() => {
     setOptionDetailsById((prev) => {
@@ -182,6 +240,20 @@ export const ProductCreateVariantsSection = ({
   }, [watchedOptions])
 
   const handleProductOptionSelect = (optionValues: string[]) => {
+    // Edit mode: an option already saved on the product cannot be removed, the
+    // backend rejects unlinking an option that variants still use. Leave the
+    // form unchanged and explain why.
+    if (isEdit) {
+      const removesStoredOption = [...storedOptionIds.current].some(
+        (id) => !optionValues.includes(id)
+      )
+
+      if (removesStoredOption) {
+        toast.error(t("products.edit.full.optionInUse"))
+        return
+      }
+    }
+
     const existingOptionIds = optionValues.filter((val) =>
       knownOptionIds.has(val)
     )
@@ -230,6 +302,17 @@ export const ProductCreateVariantsSection = ({
       options.filter(({ values }) => values && values.length > 0)
     )
 
+    // Edit mode: reconcile with the variants that already exist so their data
+    // (prices, SKUs, kits, ids) survives. Create mode: start from scratch.
+    if (isEdit) {
+      form.setValue(
+        "variants",
+        mergeVariantCombinations(form.getValues("variants"), permutations),
+        setValueOptions
+      )
+      return
+    }
+
     const newVariants = permutations.map((permutation, index) => ({
       title: getVariantName(permutation),
       options: permutation,
@@ -267,23 +350,47 @@ export const ProductCreateVariantsSection = ({
       }
     })
 
+    const selectedExistingValues =
+      productOption?.values
+        ?.filter((v) => validValueIds.includes(v.id))
+        .map((v) => v.value) || []
+    const nextValues = [...selectedExistingValues, ...newValueNames]
+
+    // Edit mode: a value cannot be removed while a saved variant that is still
+    // going to be kept uses it (the backend rejects it). The manager has to
+    // uncheck (delete) those variants first.
+    if (isEdit) {
+      const inUse = (currentOption.values ?? []).filter(
+        (value) =>
+          !nextValues.includes(value) &&
+          watchedVariants.some(
+            (variant) =>
+              variant.variant_id &&
+              variant.should_create &&
+              variant.options[currentOption.title] === value
+          )
+      )
+
+      if (inUse.length) {
+        toast.error(
+          t("products.edit.full.valueInUse", { values: inUse.join(", ") })
+        )
+        return
+      }
+    }
+
     const updatedOptions = watchedOptions.map((opt) => {
       if (opt.id === optionId) {
-        const selectedExistingValues =
-          productOption?.values
-            ?.filter((v) => validValueIds.includes(v.id))
-            .map((v) => v.value) || []
-
         return {
           ...opt,
           value_ids: valueIds,
-          values: [...selectedExistingValues, ...newValueNames],
+          values: nextValues,
         }
       }
       return opt
     })
 
-    form.setValue("options", updatedOptions)
+    form.setValue("options", updatedOptions, setValueOptions)
     generateAndSetVariants(updatedOptions)
   }
 
@@ -301,7 +408,7 @@ export const ProductCreateVariantsSection = ({
       return opt
     })
 
-    form.setValue("options", updatedOptions)
+    form.setValue("options", updatedOptions, setValueOptions)
     generateAndSetVariants(updatedOptions)
   }
 
@@ -342,7 +449,7 @@ export const ProductCreateVariantsSection = ({
       }
     )
 
-    form.setValue("options", newOptions)
+    form.setValue("options", newOptions, setValueOptions)
     generateAndSetVariants(newOptions)
   }
 
@@ -433,25 +540,29 @@ export const ProductCreateVariantsSection = ({
     <div id="variants" className="flex flex-col gap-y-8">
       <div className="flex flex-col gap-y-6">
         <Heading level="h2">{t("products.create.variants.header")}</Heading>
-        <SwitchBox
-          control={form.control}
-          name="enable_variants"
-          label={t("products.create.variants.subHeadingTitle")}
-          description={t("products.create.variants.subHeadingDescription")}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              form.setValue("options", [
-                {
-                  title: "",
-                  values: [],
-                },
-              ])
-              form.setValue("variants", [])
-            } else {
-              createDefaultOptionAndVariant()
-            }
-          }}
-        />
+        {/* Hidden in edit mode: toggling it would wipe the product's existing
+            options and variants. */}
+        {!isEdit && (
+          <SwitchBox
+            control={form.control}
+            name="enable_variants"
+            label={t("products.create.variants.subHeadingTitle")}
+            description={t("products.create.variants.subHeadingDescription")}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                form.setValue("options", [
+                  {
+                    title: "",
+                    values: [],
+                  },
+                ])
+                form.setValue("variants", [])
+              } else {
+                createDefaultOptionAndVariant()
+              }
+            }}
+          />
+        )}
       </div>
       {watchedAreVariantsEnabled && (
         <>
@@ -570,17 +681,26 @@ export const ProductCreateVariantsSection = ({
                           onChange={(value) =>
                             handleValueChange(opt.id!, value as string[])
                           }
-                          // onCreateOption={async (values) => {
-                          //   const newValueName =
-                          //     values[values.length - 1]?.trim()
-                          //   if (newValueName && opt.id) {
-                          //     const currentValueIds = opt.value_ids || []
-                          //     handleValueChange(opt.id, [
-                          //       ...currentValueIds,
-                          //       newValueName,
-                          //     ])
-                          //   }
-                          // }}
+                          // The create flow cannot add values to an existing
+                          // option, but the edit flow must (e.g. add "XL" to
+                          // Size). The new name is passed through as if it were
+                          // a value id; `handleValueChange` already treats
+                          // anything that is not a known id as a new name.
+                          onCreateOption={
+                            isEdit
+                              ? async (values) => {
+                                  const newValueName =
+                                    values[values.length - 1]?.trim()
+
+                                  if (newValueName && opt.id) {
+                                    handleValueChange(opt.id, [
+                                      ...(opt.value_ids ?? []),
+                                      newValueName,
+                                    ])
+                                  }
+                                }
+                              : undefined
+                          }
                           options={valueOptions}
                           placeholder={t(
                             "products.fields.options.variantionsPlaceholder"
@@ -706,7 +826,9 @@ export const ProductCreateVariantsSection = ({
               )}
               {variants.fields.length > 0 && (
                 <InlineTip label={t("general.tip")}>
-                  {t("products.create.variants.productVariants.tip")}
+                  {isEdit
+                    ? t("products.edit.full.variantsTip")
+                    : t("products.create.variants.productVariants.tip")}
                 </InlineTip>
               )}
             </div>

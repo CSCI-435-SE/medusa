@@ -11,6 +11,10 @@ export const MediaSchema = z.object({
 })
 
 const ProductCreateVariantSchema = z.object({
+  // Id of an already-saved variant. Only set by the edit flow (empty in the
+  // create flow). It is deliberately not called `id`: react-hook-form's
+  // `useFieldArray` reserves `id` as its own row key and would overwrite it.
+  variant_id: z.string().optional(),
   should_create: z.boolean(),
   is_default: z.boolean().optional(),
   title: z.string(),

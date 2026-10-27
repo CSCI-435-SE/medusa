@@ -102,7 +102,10 @@ describe("buildProductEditRequests", () => {
 
     const requests = build(values)
 
-    expect(requests.variantUpdates).toBeUndefined()
+    expect(requests.variantsBatch).toBeUndefined()
+    expect(requests.variantDeletes).toBeUndefined()
+    expect(requests.optionsAdd).toBeUndefined()
+    expect(requests.optionsRemove).toBeUndefined()
     expect(requests.inventoryItems).toBeUndefined()
     expect(requests.product.description).toBe("New description")
   })
@@ -123,11 +126,12 @@ describe("buildProductEditRequests", () => {
     const values = mapProductToFormValues(product)
     values.variants[0].prices = { usd: "12", reg_1: "9" }
 
-    const { variantUpdates } = build(values)
+    const { variantsBatch } = build(values)
 
-    expect(variantUpdates).toHaveLength(1)
-    expect(variantUpdates![0].id).toBe("variant_1")
-    expect(variantUpdates![0].prices).toEqual([
+    expect(variantsBatch?.create).toBeUndefined()
+    expect(variantsBatch?.update).toHaveLength(1)
+    expect(variantsBatch!.update![0].id).toBe("variant_1")
+    expect(variantsBatch!.update![0].prices).toEqual([
       { id: "price_1", currency_code: "usd", amount: 12 },
       {
         id: "price_2",
@@ -168,5 +172,128 @@ describe("buildProductEditRequests", () => {
 
     expect(payload.thumbnail).toBe("http://img/1.png")
     expect(payload.images).toEqual([{ id: "img_1", url: "http://img/1.png" }])
+  })
+})
+
+describe("buildProductEditRequests: options and variants", () => {
+  it("maps stored variants to rows that carry their variant_id", () => {
+    const [variant] = mapProductToFormValues(product).variants
+
+    expect(variant.variant_id).toBe("variant_1")
+  })
+
+  it("creates a brand-new variant (no variant_id) with its options record", () => {
+    const values = mapProductToFormValues(product)
+    values.variants.push({
+      title: "L",
+      should_create: true,
+      variant_rank: 1,
+      options: { Size: "L" },
+      sku: "SHIRT-L",
+      manage_inventory: false,
+      allow_backorder: false,
+      inventory_kit: false,
+      prices: { usd: "11" },
+      inventory: [{ inventory_item_id: "", required_quantity: "" }],
+    })
+
+    const { variantsBatch } = build(values)
+
+    expect(variantsBatch?.update).toBeUndefined()
+    expect(variantsBatch?.create).toHaveLength(1)
+    expect(variantsBatch!.create![0]).toMatchObject({
+      title: "L",
+      sku: "SHIRT-L",
+      options: { Size: "L" },
+      prices: [{ currency_code: "usd", amount: 11 }],
+    })
+  })
+
+  it("does not create a new row the manager unchecked", () => {
+    const values = mapProductToFormValues(product)
+    values.variants.push({
+      title: "L",
+      should_create: false,
+      variant_rank: 1,
+      options: { Size: "L" },
+      inventory: [],
+    } as any)
+
+    expect(build(values).variantsBatch).toBeUndefined()
+  })
+
+  it("deletes a saved variant that was unchecked", () => {
+    const values = mapProductToFormValues(product)
+    values.variants[0].should_create = false
+
+    const requests = build(values)
+
+    expect(requests.variantDeletes).toEqual(["variant_1"])
+    // A deleted variant must not also be updated.
+    expect(requests.variantsBatch).toBeUndefined()
+  })
+
+  it("adds a typed value to an existing option before variants are saved", () => {
+    const values = mapProductToFormValues(product)
+    values.options[0].values = ["M", "XL"]
+    values.options[0].value_ids = ["val_1", "XL"] // typed text, not an id
+
+    const { optionsAdd, optionsRemove } = build(values)
+
+    expect(optionsAdd).toEqual({
+      update: [{ product_option_id: "opt_1", add: [{ value: "XL" }] }],
+    })
+    expect(optionsRemove).toBeUndefined()
+  })
+
+  it("links an existing option value by id instead of recreating it", () => {
+    const values = mapProductToFormValues(product)
+    values.options[0].values = ["M", "L"]
+    values.options[0].value_ids = ["val_1", "optval_existing_L"]
+
+    expect(build(values).optionsAdd).toEqual({
+      update: [{ product_option_id: "opt_1", add: ["optval_existing_L"] }],
+    })
+  })
+
+  it("creates a new option and gives existing variants the full options record", () => {
+    const values = mapProductToFormValues(product)
+    values.options.push({ title: "Color", values: ["Red", "Blue"] })
+    values.variants[0].options = { Size: "M", Color: "Red" }
+
+    const { optionsAdd, variantsBatch } = build(values)
+
+    expect(optionsAdd?.add).toEqual([
+      {
+        title: "Color",
+        values: ["Red", "Blue"],
+        ranks: { Red: 0, Blue: 1 },
+        is_exclusive: true,
+      },
+    ])
+    expect(variantsBatch?.update?.[0]).toMatchObject({
+      id: "variant_1",
+      options: { Size: "M", Color: "Red" },
+    })
+  })
+
+  it("puts value removals in their own request, separate from additions", () => {
+    const values = mapProductToFormValues(product)
+    values.options[0].values = []
+    values.options[0].value_ids = []
+
+    const { optionsAdd, optionsRemove } = build(values)
+
+    expect(optionsAdd).toBeUndefined()
+    expect(optionsRemove).toEqual({
+      update: [{ product_option_id: "opt_1", remove: ["val_1"] }],
+    })
+  })
+
+  it("only sends variant_rank when the order actually changed", () => {
+    const values = mapProductToFormValues(product)
+    values.variants[0].variant_rank = 3
+
+    expect(build(values).variantsBatch?.update?.[0].variant_rank).toBe(3)
   })
 })

@@ -1,11 +1,5 @@
 import { HttpTypes } from "@medusajs/types"
-import {
-  Button,
-  Heading,
-  ProgressStatus,
-  ProgressTabs,
-  toast,
-} from "@medusajs/ui"
+import { Button, ProgressStatus, ProgressTabs, toast } from "@medusajs/ui"
 import { useMemo, useState } from "react"
 import { useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -15,13 +9,13 @@ import {
   useRouteModal,
 } from "../../../../../components/modals"
 import { KeyboundForm } from "../../../../../components/utilities/keybound-form"
-import { FormExtensionZone } from "../../../../../dashboard-app"
 import { useExtendableForm } from "../../../../../dashboard-app/forms/hooks"
 import {
   productsQueryKeys,
+  useBatchProductVariants,
+  useLinkProductOptions,
   useProductVariantsInventoryItemsBatch,
   useUpdateProduct,
-  useUpdateProductVariantsBatch,
 } from "../../../../../hooks/api/products"
 import { useDocumentDirection } from "../../../../../hooks/use-document-direction"
 import { sdk } from "../../../../../lib/client"
@@ -31,8 +25,6 @@ import { useExtension } from "../../../../../providers/extension-provider"
 // flows stay visually identical and share one set of validations.
 import { ProductCreateInventoryKitForm } from "../../../product-create/components/product-create-inventory-kit-form"
 import { ProductCreateDetailsForm } from "../../../product-create/components/product-create-details-form"
-import { ProductCreateGeneralSection } from "../../../product-create/components/product-create-details-form/components/product-create-details-general-section"
-import { ProductCreateMediaSection } from "../../../product-create/components/product-create-details-form/components/product-create-details-media-section"
 import { ProductCreateOrganizeForm } from "../../../product-create/components/product-create-organize-form"
 import { ProductCreateAttributeSection } from "../../../product-create/components/product-create-organize-form/components/product-create-organize-attribute-section"
 import { ProductCreateVariantsForm } from "../../../product-create/components/product-create-variants-form"
@@ -76,11 +68,14 @@ export const ProductEditFullForm = ({
     configs: getFormConfigs("product", "create"),
   })
 
-  const updateVariants = useUpdateProductVariantsBatch(product.id)
+  // One mutation hook per kind of request the save may need to send.
+  const batchVariants = useBatchProductVariants(product.id)
+  const linkOptions = useLinkProductOptions(product.id)
   const updateInventoryItems = useProductVariantsInventoryItemsBatch(product.id)
   const updateProduct = useUpdateProduct(product.id)
   const isPending =
-    updateVariants.isPending ||
+    batchVariants.isPending ||
+    linkOptions.isPending ||
     updateInventoryItems.isPending ||
     updateProduct.isPending
 
@@ -129,10 +124,12 @@ export const ProductEditFullForm = ({
    * Save handler. Nothing is sent to the server until this runs (criterion 5).
    *
    * Saving is several requests because no single endpoint can update product
-   * fields, variants, prices and inventory kits together. The order is chosen
-   * so the requests most likely to be rejected by validation (variant
-   * SKUs/prices) run first and the product update runs last; if an early
-   * request fails we stop before touching the product itself.
+   * fields, options, variants, prices and inventory kits together. The order
+   * (documented on `ProductEditRequests`) is dictated by backend rules: variants
+   * that are being deleted go first, new options/values before the variants
+   * that use them, and option values are only removed once nothing uses them.
+   * The product's own fields go last. If a request fails we stop there instead
+   * of carrying on in an inconsistent state.
    */
   const handleSubmit = form.handleSubmit(async (values) => {
     // Step 1: upload any newly added files. Entries that already have a URL
@@ -173,17 +170,38 @@ export const ProductEditFullForm = ({
     })
 
     try {
-      // Step 3: variant fields + prices (skipped if no variant changed).
-      if (requests.variantUpdates) {
-        await updateVariants.mutateAsync(requests.variantUpdates)
+      // Step 3: delete variants the manager unchecked. Its own request, run
+      // first: a batch runs create/update/delete in parallel, and the backend
+      // refuses to unlink an option value while a variant still uses it.
+      if (requests.variantDeletes) {
+        await batchVariants.mutateAsync({ delete: requests.variantDeletes })
       }
 
-      // Step 4: inventory kit links (skipped if no kit changed).
+      // Step 4: add new options and option values, so the variants created or
+      // updated next can refer to them.
+      if (requests.optionsAdd) {
+        await linkOptions.mutateAsync(requests.optionsAdd)
+      }
+
+      // Step 5: create new variants and update changed ones (skipped if there
+      // is nothing to do). Existing variants get their full options record
+      // here when a new option was added.
+      if (requests.variantsBatch) {
+        await batchVariants.mutateAsync(requests.variantsBatch)
+      }
+
+      // Step 6: inventory kit links of existing variants (skipped if no kit
+      // changed). New variants already carry their kit in step 5.
       if (requests.inventoryItems) {
         await updateInventoryItems.mutateAsync(requests.inventoryItems)
       }
 
-      // Step 5: the product itself, last.
+      // Step 7: unlink option values nothing uses any more.
+      if (requests.optionsRemove) {
+        await linkOptions.mutateAsync(requests.optionsRemove)
+      }
+
+      // Step 8: the product itself, last.
       await updateProduct.mutateAsync(requests.product)
     } catch (e) {
       // Earlier requests may already have been saved, so refetch the product
@@ -278,7 +296,10 @@ export const ProductEditFullForm = ({
               className="size-full overflow-y-auto"
               value={Tab.DETAILS}
             >
-              <DetailsTab form={form} />
+              {/* Same builder as the create flow, in "edit" mode: it merges
+                  option/variant changes into the existing variants instead of
+                  regenerating them (see ProductCreateVariantsSection). */}
+              <ProductCreateDetailsForm form={form} mode="edit" />
             </ProgressTabs.Content>
             <ProgressTabs.Content
               className="size-full overflow-y-auto"
@@ -347,33 +368,5 @@ export const ProductEditFullForm = ({
         </RouteFocusModal.Footer>
       </KeyboundForm>
     </RouteFocusModal.Form>
-  )
-}
-
-/**
- * Details tab: general fields and media only. The create flow also shows the
- * option/variant builder here; the edit flow omits it because options and
- * variants are edited in place (variants tab), not added or removed.
- */
-const DetailsTab = ({
-  form,
-}: {
-  form: React.ComponentProps<typeof ProductCreateDetailsForm>["form"]
-}) => {
-  const { t } = useTranslation()
-  const { getFormFields } = useExtension()
-  const fields = getFormFields("product", "create", "general")
-
-  return (
-    <div className="flex flex-col items-center p-16">
-      <div className="flex w-full max-w-[720px] flex-col gap-y-8">
-        <Heading>{t("products.create.header")}</Heading>
-        <div className="flex flex-col gap-y-6">
-          <ProductCreateGeneralSection form={form} />
-          <FormExtensionZone fields={fields} form={form} />
-          <ProductCreateMediaSection form={form} />
-        </div>
-      </div>
-    </div>
   )
 }

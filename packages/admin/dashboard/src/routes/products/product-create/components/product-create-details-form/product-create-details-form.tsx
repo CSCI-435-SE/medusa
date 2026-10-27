@@ -11,9 +11,14 @@ import { ProductCreateVariantsSection } from "./components/product-create-detail
 
 type ProductAttributesProps = {
   form: UseFormReturn<ProductCreateSchemaType>
+  /** Forwarded to the options/variants builder; "edit" is used by the full Edit Product flow. */
+  mode?: "create" | "edit"
 }
 
-export const ProductCreateDetailsForm = ({ form }: ProductAttributesProps) => {
+export const ProductCreateDetailsForm = ({
+  form,
+  mode = "create",
+}: ProductAttributesProps) => {
   const { getFormFields } = useExtension()
   const fields = getFormFields("product", "create", "general")
 
@@ -27,7 +32,7 @@ export const ProductCreateDetailsForm = ({ form }: ProductAttributesProps) => {
           <ProductCreateMediaSection form={form} />
         </div>
         <Divider />
-        <ProductCreateVariantsSection form={form} />
+        <ProductCreateVariantsSection form={form} mode={mode} />
       </div>
     </div>
   )

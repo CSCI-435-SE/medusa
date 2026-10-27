@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 import { castNumber } from "../../../lib/cast-number"
 import { transformNullableFormNumber } from "../../../lib/form-helpers"
 import { ProductCreateSchemaType } from "../product-create/types"
+import { normalizeVariants } from "../product-create/utils"
 
 /**
  * Helpers for the full "Edit Product" flow.
@@ -156,6 +157,10 @@ export const mapVariantToFormValue = (
     (kitItems.length === 1 && kitItems[0].required_quantity !== 1)
 
   return {
+    // Identity of the saved variant. The edit flow matches rows to stored
+    // variants by this, never by position, because variants can now be added,
+    // removed and reordered.
+    variant_id: variant.id,
     should_create: true, // every existing variant stays visible in the grid
     title: variant.title ?? "",
     sku: variant.sku ?? "",
@@ -219,9 +224,9 @@ export const mapProductToFormValues = (
     mid_code: product.mid_code ?? "",
     hs_code: product.hs_code ?? "",
     options,
-    // Not used by the edit flow (variants/options are edit-in-place only), but
-    // required by the shared schema.
-    enable_variants: (product.variants?.length ?? 0) > 1,
+    // The edit flow always shows the options/variants builder (the switch is
+    // hidden in edit mode), but the shared schema requires the field.
+    enable_variants: true,
     variants: getSortedVariants(input).map((variant) =>
       mapVariantToFormValue(variant, optionTitlesById)
     ),
@@ -230,22 +235,136 @@ export const mapProductToFormValues = (
 }
 
 /**
- * Everything the save handler needs to send, already split per endpoint.
- * `undefined` for a key means "nothing changed, skip that call".
+ * Option values created by the API have ids with this prefix. In the form an
+ * option's `value_ids` can hold either real ids (picked from the list) or the
+ * plain text of a value the manager just typed, and this is how we tell them
+ * apart when building the request.
+ */
+const OPTION_VALUE_ID_PREFIX = "optval_"
+const isOptionValueId = (value: string) =>
+  value.startsWith(OPTION_VALUE_ID_PREFIX)
+
+/**
+ * Everything the save handler needs to send, already split per request and
+ * listed in the order the requests must run. `undefined` for a key means
+ * "nothing changed, skip that call".
+ *
+ * The order matters because of backend rules:
+ *  1. `variantDeletes`: first, and in their own request, because a batch runs
+ *     its create/update/delete in parallel and a delete must finish before the
+ *     option values those variants used can be unlinked.
+ *  2. `optionsAdd`: new options / values must exist before any variant uses them.
+ *  3. `variantsBatch`: creates and updates (existing variants also get their
+ *     full options record here when a new option was added).
+ *  4. `inventoryItems`: kit changes for variants that already existed (new
+ *     variants send their kit inside their create payload).
+ *  5. `optionsRemove`: values are only unlinked once nothing uses them.
+ *  6. `product`: the product's own fields, last.
  */
 export type ProductEditRequests = {
-  variantUpdates?: HttpTypes.AdminBatchProductVariantRequest["update"]
+  variantDeletes?: string[]
+  optionsAdd?: HttpTypes.AdminLinkProductOptions
+  variantsBatch?: Pick<
+    HttpTypes.AdminBatchProductVariantRequest,
+    "create" | "update"
+  >
   inventoryItems?: HttpTypes.AdminBatchProductVariantInventoryItemRequest
+  optionsRemove?: HttpTypes.AdminLinkProductOptions
   product: HttpTypes.AdminUpdateProduct
 }
 
+/** Order-independent comparison of two option records. */
+const sameOptions = (a: Record<string, string>, b: Record<string, string>) =>
+  JSON.stringify(Object.entries(a).sort()) ===
+  JSON.stringify(Object.entries(b).sort())
+
 /**
- * Converts the submitted form values into the payloads for the three API calls
- * made on save (see `ProductEditFullForm` for the order they run in).
+ * Compares the options in the form with the options the product had when the
+ * form opened, and produces the two option requests (see `ProductEditRequests`
+ * for why they are separate: additions before the variants are saved,
+ * removals after).
+ */
+const buildOptionRequests = (
+  values: ProductCreateSchemaType,
+  initial: ProductCreateSchemaType
+) => {
+  const add: NonNullable<HttpTypes.AdminLinkProductOptions["add"]> = []
+  const addValues: NonNullable<HttpTypes.AdminLinkProductOptions["update"]> = []
+  const removeValues: NonNullable<HttpTypes.AdminLinkProductOptions["update"]> =
+    []
+
+  values.options
+    .filter((option) => option.title) // ignore blank placeholder entries
+    .forEach((option) => {
+      const before = initial.options.find((o) => o.id && o.id === option.id)
+
+      if (!option.id) {
+        // Brand-new option, exclusive to this product. Values keep the order
+        // the manager typed them in.
+        add.push({
+          title: option.title,
+          values: option.values,
+          ranks: Object.fromEntries(option.values.map((v, i) => [v, i])),
+          is_exclusive: true,
+        } as HttpTypes.AdminCreateProductOption)
+        return
+      }
+
+      const selected = option.value_ids ?? []
+
+      if (!before) {
+        // A global option the manager picked from the list: link it with the
+        // values they selected, and create any values they typed.
+        add.push({ id: option.id, value_ids: selected.filter(isOptionValueId) })
+
+        const typed = selected.filter((v) => !isOptionValueId(v))
+        if (typed.length) {
+          addValues.push({
+            product_option_id: option.id,
+            add: typed.map((value) => ({ value })),
+          })
+        }
+        return
+      }
+
+      // Option already on the product: diff its values.
+      const storedIds = before.value_ids ?? []
+      const added = selected.filter((v) => !storedIds.includes(v))
+      const removed = storedIds.filter((id) => !selected.includes(id))
+
+      if (added.length) {
+        addValues.push({
+          product_option_id: option.id,
+          // Existing ids are linked as-is, typed text creates a new value.
+          add: added.map((v) => (isOptionValueId(v) ? v : { value: v })),
+        })
+      }
+
+      if (removed.length) {
+        removeValues.push({ product_option_id: option.id, remove: removed })
+      }
+    })
+
+  return {
+    optionsAdd:
+      add.length || addValues.length
+        ? {
+            ...(add.length ? { add } : {}),
+            ...(addValues.length ? { update: addValues } : {}),
+          }
+        : undefined,
+    optionsRemove: removeValues.length ? { update: removeValues } : undefined,
+  }
+}
+
+/**
+ * Converts the submitted form values into the payloads for the API calls made
+ * on save (see `ProductEditFullForm` for how they are run, and
+ * `ProductEditRequests` for the required order).
  *
  * @param values - the validated form values
- * @param product - the product as it was loaded; used to find variant ids and
- *   to skip variants the user did not touch
+ * @param product - the product as it was loaded; used to find stored variants
+ *   and options and to skip anything the user did not touch
  * @param media - the form's media after new files were uploaded, i.e. every
  *   entry has a final `url`
  * @param regionsCurrencyMap - region id -> currency code, for region prices
@@ -262,9 +381,15 @@ export const buildProductEditRequests = ({
   regionsCurrencyMap: Record<string, string>
 }): ProductEditRequests => {
   const initial = mapProductToFormValues(product)
-  const storedVariants = getSortedVariants(product)
+  const storedById = new Map(getSortedVariants(product).map((v) => [v.id, v]))
+  const initialById = new Map(
+    initial.variants.map((v) => [v.variant_id as string, v])
+  )
 
-  const variantUpdates: NonNullable<ProductEditRequests["variantUpdates"]> = []
+  const variantDeletes: string[] = []
+  const variantUpdates: NonNullable<
+    HttpTypes.AdminBatchProductVariantRequest["update"]
+  > = []
   const inventoryCreate: {
     variant_id: string
     inventory_item_id: string
@@ -278,86 +403,121 @@ export const buildProductEditRequests = ({
   const inventoryDelete: { variant_id: string; inventory_item_id: string }[] =
     []
 
-  values.variants.forEach((variant, index) => {
-    const stored = storedVariants[index]
-    const before = initial.variants[index]
+  // --- New variants ----------------------------------------------------------
+  // A row without a `variant_id` that is still checked is a new variant. The
+  // create flow's `normalizeVariants` already builds the payload (options
+  // record, prices with region rules, inventory kit).
+  const variantCreates = normalizeVariants(
+    values.variants.filter((v) => !v.variant_id && v.should_create),
+    regionsCurrencyMap
+  )
 
-    // Defensive: the grid never adds or removes rows, so this should not
-    // happen, but never send an update for a variant we cannot identify.
-    if (!stored || !before) {
-      return
-    }
+  // --- Existing variants -----------------------------------------------------
+  values.variants
+    .filter((variant) => !!variant.variant_id)
+    .forEach((variant) => {
+      const id = variant.variant_id as string
 
-    // --- Variant fields (title, sku, flags, prices) --------------------------
-    // Compare field by field against the initial values so untouched variants
-    // do not generate any request.
-    const variantFieldsChanged =
-      variant.title !== before.title ||
-      (variant.sku ?? "") !== (before.sku ?? "") ||
-      !!variant.manage_inventory !== !!before.manage_inventory ||
-      !!variant.allow_backorder !== !!before.allow_backorder ||
-      JSON.stringify(variant.prices ?? {}) !== JSON.stringify(before.prices)
+      // Unchecking a saved variant means "delete it on save".
+      if (!variant.should_create) {
+        variantDeletes.push(id)
+        return
+      }
 
-    if (variantFieldsChanged) {
-      variantUpdates.push({
-        id: stored.id,
-        title: variant.title,
-        // An emptied SKU input means "remove the SKU", so send null.
-        sku: variant.sku ? variant.sku : null,
-        manage_inventory: !!variant.manage_inventory,
-        allow_backorder: !!variant.allow_backorder,
-        prices: buildPricePayload(
-          variant.prices ?? {},
-          stored,
-          regionsCurrencyMap
-        ),
-      })
-    }
+      const stored = storedById.get(id)
+      const before = initialById.get(id)
 
-    // --- Inventory kit ---------------------------------------------------------
-    // Only diff the kit when the user has the variant marked as a kit; this
-    // matches the create flow, where the inventory tab only applies to kits.
-    if (variant.manage_inventory && variant.inventory_kit) {
-      const desired = (variant.inventory ?? [])
-        .map((item) => ({
-          inventory_item_id: item.inventory_item_id,
-          required_quantity: item.required_quantity
-            ? castNumber(item.required_quantity)
-            : 0,
-        }))
-        // Skip the blank placeholder row the form keeps for new entries.
-        .filter((item) => item.inventory_item_id && item.required_quantity)
+      // Defensive: never send an update for a variant we cannot identify.
+      if (!stored || !before) {
+        return
+      }
 
-      const current = stored.inventory_items ?? []
+      // Variant fields: compare against the initial values so untouched
+      // variants do not generate any request.
+      const optionsChanged = !sameOptions(variant.options, before.options)
+      const rankChanged = variant.variant_rank !== before.variant_rank
+      const fieldsChanged =
+        variant.title !== before.title ||
+        (variant.sku ?? "") !== (before.sku ?? "") ||
+        !!variant.manage_inventory !== !!before.manage_inventory ||
+        !!variant.allow_backorder !== !!before.allow_backorder ||
+        JSON.stringify(variant.prices ?? {}) !== JSON.stringify(before.prices)
 
-      desired.forEach((item) => {
-        const existing = current.find(
-          (c) => c.inventory_item_id === item.inventory_item_id
-        )
+      if (fieldsChanged || optionsChanged || rankChanged) {
+        variantUpdates.push({
+          id,
+          title: variant.title,
+          // An emptied SKU input means "remove the SKU", so send null.
+          sku: variant.sku ? variant.sku : null,
+          manage_inventory: !!variant.manage_inventory,
+          allow_backorder: !!variant.allow_backorder,
+          prices: buildPricePayload(
+            variant.prices ?? {},
+            stored,
+            regionsCurrencyMap
+          ),
+          // The backend wants the complete record (a value for every option),
+          // which is what the form holds after a new option was added.
+          ...(optionsChanged ? { options: variant.options } : {}),
+          ...(rankChanged ? { variant_rank: variant.variant_rank } : {}),
+        })
+      }
 
-        if (!existing) {
-          inventoryCreate.push({ variant_id: stored.id, ...item })
-        } else if (existing.required_quantity !== item.required_quantity) {
-          inventoryUpdate.push({ variant_id: stored.id, ...item })
-        }
-      })
+      // Inventory kit: only diff it when the variant is marked as a kit; this
+      // matches the create flow, where the inventory tab only applies to kits.
+      if (variant.manage_inventory && variant.inventory_kit) {
+        const desired = (variant.inventory ?? [])
+          .map((item) => ({
+            inventory_item_id: item.inventory_item_id,
+            required_quantity: item.required_quantity
+              ? castNumber(item.required_quantity)
+              : 0,
+          }))
+          // Skip the blank placeholder row the form keeps for new entries.
+          .filter((item) => item.inventory_item_id && item.required_quantity)
 
-      current.forEach((c) => {
-        if (!desired.some((d) => d.inventory_item_id === c.inventory_item_id)) {
-          inventoryDelete.push({
-            variant_id: stored.id,
-            inventory_item_id: c.inventory_item_id,
-          })
-        }
-      })
-    }
-  })
+        const current = stored.inventory_items ?? []
+
+        desired.forEach((item) => {
+          const existing = current.find(
+            (c) => c.inventory_item_id === item.inventory_item_id
+          )
+
+          if (!existing) {
+            inventoryCreate.push({ variant_id: id, ...item })
+          } else if (existing.required_quantity !== item.required_quantity) {
+            inventoryUpdate.push({ variant_id: id, ...item })
+          }
+        })
+
+        current.forEach((c) => {
+          if (
+            !desired.some((d) => d.inventory_item_id === c.inventory_item_id)
+          ) {
+            inventoryDelete.push({
+              variant_id: id,
+              inventory_item_id: c.inventory_item_id,
+            })
+          }
+        })
+      }
+    })
 
   const hasInventoryChanges =
     inventoryCreate.length || inventoryUpdate.length || inventoryDelete.length
 
+  const { optionsAdd, optionsRemove } = buildOptionRequests(values, initial)
+
   return {
-    variantUpdates: variantUpdates.length ? variantUpdates : undefined,
+    variantDeletes: variantDeletes.length ? variantDeletes : undefined,
+    optionsAdd,
+    variantsBatch:
+      variantCreates.length || variantUpdates.length
+        ? {
+            ...(variantCreates.length ? { create: variantCreates } : {}),
+            ...(variantUpdates.length ? { update: variantUpdates } : {}),
+          }
+        : undefined,
     inventoryItems: hasInventoryChanges
       ? {
           create: inventoryCreate,
@@ -365,6 +525,7 @@ export const buildProductEditRequests = ({
           delete: inventoryDelete,
         }
       : undefined,
+    optionsRemove,
     product: {
       title: values.title.trim(),
       // Empty strings become null so the API clears the value instead of
