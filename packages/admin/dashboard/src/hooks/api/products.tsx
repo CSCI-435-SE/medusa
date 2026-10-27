@@ -137,6 +137,39 @@ export const useUpdateProductVariantsBatch = (
   })
 }
 
+/**
+ * Batch create / update / delete of a product's variants in one request.
+ * Used by the full Edit Product flow, which can add and remove variants as
+ * well as update them (`useUpdateProductVariantsBatch` above only updates).
+ */
+export const useBatchProductVariants = (
+  productId: string,
+  options?: UseMutationOptions<
+    HttpTypes.AdminBatchProductVariantResponse,
+    FetchError,
+    HttpTypes.AdminBatchProductVariantRequest
+  >
+) => {
+  return useMutation({
+    mutationFn: (payload) =>
+      sdk.admin.product.batchVariants(productId, payload),
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: variantsQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: variantsQueryKeys.details() })
+      queryClient.invalidateQueries({
+        queryKey: productsQueryKeys.detail(productId),
+      })
+      // New variants with managed inventory create inventory items.
+      queryClient.invalidateQueries({
+        queryKey: inventoryItemsQueryKeys.lists(),
+      })
+
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
+
 export const useProductVariantsInventoryItemsBatch = (
   productId: string,
   options?: UseMutationOptions<
