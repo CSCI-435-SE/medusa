@@ -94,9 +94,10 @@ export class RedisDistributedTransactionStorage
 
   /**
    * Retention time, in seconds, of failed and reverted executions of
-   * workflows that don't set their own retention time.
+   * workflows that don't set their own retention time. When 0, they are deleted
+   * when they finish.
    */
-  private failedExecutionRetentionTime_: number = SEVEN_DAYS_IN_SECONDS
+  private failedExecutionRetentionTime_: number
 
   constructor({
     workflowExecutionService,
@@ -112,6 +113,7 @@ export class RedisDistributedTransactionStorage
     redisCleanerWorkerOptions,
     logger,
     isWorkerMode,
+    failedExecutionRetentionTime,
   }: {
     workflowExecutionService: ModulesSdkTypes.IMedusaInternalService<any>
     redisConnection: Redis
@@ -126,9 +128,12 @@ export class RedisDistributedTransactionStorage
     redisCleanerWorkerOptions: Omit<WorkerOptions, "connection">
     logger: Logger
     isWorkerMode: boolean
+    failedExecutionRetentionTime?: number
   }) {
     this.workflowExecutionService_ = workflowExecutionService
     this.logger_ = logger
+    this.failedExecutionRetentionTime_ =
+      failedExecutionRetentionTime ?? SEVEN_DAYS_IN_SECONDS
     this.redisClient = redisConnection
     this.redisWorkerConnection = redisWorkerConnection
     this.cleanerQueueName = "workflows-cleaner"
@@ -636,7 +641,11 @@ export class RedisDistributedTransactionStorage
 
       // Parallelize DB and Redis operations for better performance
       if (hasFinished && !retentionTime) {
-        if (!data.flow.metadata?.parentStepIdempotencyKey) {
+        // Child executions are kept, unless they failed while failed execution retention is turned off
+        if (
+          !data.flow.metadata?.parentStepIdempotencyKey ||
+          (failedStates.has(data.flow.state) && !options?.idempotent)
+        ) {
           await promiseAll([this.deleteFromDb(data), execPipeline()])
         } else {
           await promiseAll([this.saveToDb(data, retentionTime), execPipeline()])
