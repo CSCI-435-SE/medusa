@@ -518,6 +518,13 @@ export function getRouteMap({
                 {
                   path: "",
                   lazy: () => import("../../routes/promotions/promotion-list"),
+                  children: [
+                    {
+                      path: "import",
+                      lazy: () =>
+                        import("../../routes/promotions/promotion-import"),
+                    },
+                  ],
                 },
                 {
                   path: "create",

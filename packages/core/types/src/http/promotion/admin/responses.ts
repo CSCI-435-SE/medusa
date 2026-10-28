@@ -71,3 +71,10 @@ export type AdminRuleValueOptionsListResponse = PaginatedResponse<{
 export type AdminPromotionRuleBatchResponse = BatchResponse<AdminPromotionRule>
 
 export type AdminPromotionDeleteResponse = DeleteResponse<"promotion">
+
+export interface AdminImportPromotionsResponse {
+  /**
+   * The number of promotions created by the import.
+   */
+  created: number
+}

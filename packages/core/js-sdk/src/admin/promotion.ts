@@ -157,6 +157,46 @@ export class Promotion {
   }
 
   /**
+   * This method imports promotions from a CSV file. It sends a request to the
+   * Import Promotions API route.
+   *
+   * Every row is checked first. If any row is invalid, no promotions are
+   * created and the error message lists each failing row.
+   *
+   * @param body - The CSV file to import.
+   * @param headers - Headers to pass in the request.
+   * @returns The number of promotions created.
+   *
+   * @example
+   * sdk.admin.promotion.import({
+   *   file // an uploaded File object
+   * })
+   * .then(({ created }) => {
+   *   console.log(created)
+   * })
+   */
+  async import(
+    body: HttpTypes.AdminImportPromotionsRequest,
+    headers?: ClientHeaders
+  ) {
+    const form = new FormData()
+    form.append("file", body.file)
+
+    return this.client.fetch<HttpTypes.AdminImportPromotionsResponse>(
+      `/admin/promotions/import`,
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+          // Let the browser determine the content type.
+          "content-type": null,
+        },
+        body: form,
+      }
+    )
+  }
+
+  /**
    * This method updates a promotion. It sends a request to the
    * [Update Promotion](https://docs.medusajs.com/api/admin#promotions_postpromotionsid)
    * API route.
