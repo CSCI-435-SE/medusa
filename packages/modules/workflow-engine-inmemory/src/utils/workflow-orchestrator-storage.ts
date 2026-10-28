@@ -118,19 +118,24 @@ export class InMemoryDistributedTransactionStorage
 
   /**
    * Retention time, in seconds, of failed and reverted executions of
-   * workflows that don't set their own retention time.
+   * workflows that don't set their own retention time. When 0, they are deleted
+   * when they finish.
    */
-  private failedExecutionRetentionTime_: number = SEVEN_DAYS_IN_SECONDS
+  private failedExecutionRetentionTime_: number
 
   constructor({
     workflowExecutionService,
     logger,
+    failedExecutionRetentionTime,
   }: {
     workflowExecutionService: ModulesSdkTypes.IMedusaInternalService<any>
     logger: Logger
+    failedExecutionRetentionTime?: number
   }) {
     this.workflowExecutionService_ = workflowExecutionService
     this.logger_ = logger
+    this.failedExecutionRetentionTime_ =
+      failedExecutionRetentionTime ?? SEVEN_DAYS_IN_SECONDS
   }
 
   async onApplicationStart() {
@@ -421,7 +426,11 @@ export class InMemoryDistributedTransactionStorage
       // Optimize DB operations - only perform when necessary
       if (hasFinished) {
         if (!retentionTime) {
-          if (!flow.metadata?.parentStepIdempotencyKey) {
+          // Child executions are kept, unless they failed while failed execution retention is turned off
+          if (
+            !flow.metadata?.parentStepIdempotencyKey ||
+            (failedStates.has(flow.state) && !options?.idempotent)
+          ) {
             await this.deleteFromDb(data)
           } else {
             await this.saveToDb(data, retentionTime)
