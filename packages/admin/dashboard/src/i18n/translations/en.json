@@ -2469,6 +2469,11 @@
       "list": {
         "noRecordsMessage": "Add a condition to restrict what items the promotion applies to."
       }
+    },
+    "duplicate": {
+      "header": "Duplicate Promotion",
+      "description": "Create a draft copy of this promotion with its settings and conditions. The copy isn't added to a campaign.",
+      "successToast": "Promotion {{code}} was created as a draft"
     }
   },
   "campaigns": {

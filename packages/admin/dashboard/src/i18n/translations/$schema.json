@@ -9463,6 +9463,22 @@
           },
           "required": ["add", "list"],
           "additionalProperties": false
+        },
+        "duplicate": {
+          "type": "object",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "successToast": {
+              "type": "string"
+            }
+          },
+          "required": ["header", "description", "successToast"],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -9482,7 +9498,8 @@
         "deleteWarning",
         "createPromotionTitle",
         "type",
-        "conditions"
+        "conditions",
+        "duplicate"
       ],
       "additionalProperties": false
     },

@@ -553,6 +553,11 @@ export function getRouteMap({
                         ),
                     },
                     {
+                      path: "duplicate",
+                      lazy: () =>
+                        import("../../routes/promotions/promotion-duplicate"),
+                    },
+                    {
                       path: ":ruleType/edit",
                       lazy: () =>
                         import("../../routes/promotions/common/edit-rules"),

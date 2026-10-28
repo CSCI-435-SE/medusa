@@ -203,6 +203,24 @@ export const useCreatePromotion = (
   })
 }
 
+export const useDuplicatePromotion = (
+  id: string,
+  options?: UseMutationOptions<
+    HttpTypes.AdminPromotionResponse,
+    FetchError,
+    HttpTypes.AdminDuplicatePromotion
+  >
+) => {
+  return useMutation({
+    mutationFn: (payload) => sdk.admin.promotion.duplicate(id, payload),
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: promotionsQueryKeys.lists() })
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
+
 export const useUpdatePromotion = (
   id: string,
   options?: UseMutationOptions<

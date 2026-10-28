@@ -1,4 +1,4 @@
-import { PencilSquare, Trash } from "@medusajs/icons"
+import { PencilSquare, SquareTwoStack, Trash } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
 import {
   Badge,
@@ -95,6 +95,11 @@ export const PromotionGeneralSection = ({
                     icon: <PencilSquare />,
                     label: t("actions.edit"),
                     to: `/promotions/${promotion.id}/edit`,
+                  },
+                  {
+                    icon: <SquareTwoStack />,
+                    label: t("actions.duplicate"),
+                    to: `/promotions/${promotion.id}/duplicate`,
                   },
                 ],
               },
