@@ -157,6 +157,11 @@ export interface CreatePromotionDTO {
    * The associated campaign's ID.
    */
   campaign_id?: string
+
+  /**
+   * Holds custom data in key-value pairs.
+   */
+  metadata?: Record<string, unknown> | null
 }
 
 /**
