@@ -104,7 +104,11 @@ export const ProductListTable = () => {
   )
 }
 
-const ProductActions = ({ product }: { product: HttpTypes.AdminProduct }) => {
+export const ProductActions = ({
+  product,
+}: {
+  product: HttpTypes.AdminProduct
+}) => {
   const { t } = useTranslation()
   const prompt = usePrompt()
   const { mutateAsync } = useDeleteProduct(product.id)

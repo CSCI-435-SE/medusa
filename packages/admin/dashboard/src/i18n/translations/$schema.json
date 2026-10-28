@@ -1922,9 +1922,45 @@
             },
             "successToast": {
               "type": "string"
+            },
+            "full": {
+              "type": "object",
+              "properties": {
+                "button": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "errorToast": {
+                  "type": "string"
+                },
+                "optionInUse": {
+                  "type": "string"
+                },
+                "valueInUse": {
+                  "type": "string"
+                },
+                "variantsTip": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "button",
+                "title",
+                "description",
+                "errorToast",
+                "optionInUse",
+                "valueInUse",
+                "variantsTip"
+              ],
+              "additionalProperties": false
             }
           },
-          "required": ["header", "description", "successToast"],
+          "required": ["header", "description", "successToast", "full"],
           "additionalProperties": false
         },
         "create": {
