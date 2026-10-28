@@ -341,6 +341,32 @@ export const useCreateProduct = (
   })
 }
 
+export const useDuplicateProduct = (
+  id: string,
+  options?: UseMutationOptions<
+    HttpTypes.AdminProductResponse,
+    FetchError,
+    HttpTypes.AdminDuplicateProduct
+  >
+) => {
+  return useMutation({
+    mutationFn: (payload) => sdk.admin.product.duplicate(id, payload),
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: productsQueryKeys.lists() })
+      // Copied variants that manage inventory get new inventory items.
+      queryClient.invalidateQueries({
+        queryKey: inventoryItemsQueryKeys.lists(),
+      })
+      queryClient.invalidateQueries({
+        queryKey: productOptionsQueryKeys.lists(),
+      })
+
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
+
 export const useUpdateProduct = (
   id: string,
   options?: UseMutationOptions<
