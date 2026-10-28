@@ -95,6 +95,86 @@ medusaIntegrationTestRunner({
           transactionId2
         )
       })
+
+      it("should list a reverted execution of a workflow that doesn't set a retention time", async () => {
+        const step1 = createStep(
+          {
+            name: "reverted-step-1",
+          },
+          async () => {
+            return new StepResponse("step 1 done")
+          },
+          async () => {
+            return new StepResponse("step 1 compensated")
+          }
+        )
+        const failingStep = createStep(
+          {
+            name: "failing-step",
+          },
+          async () => {
+            throw new Error("I am failing")
+          }
+        )
+
+        const workflowName = "workflow-admin-reverted-executions"
+        createWorkflow(
+          {
+            name: workflowName,
+            store: true,
+          },
+          function () {
+            step1()
+            failingStep()
+
+            return new WorkflowResponse(void 0)
+          }
+        )
+
+        const transactionId = "reverted-transaction-id"
+        await workflowOrcModule.run(workflowName, {
+          transactionId,
+          throwOnError: false,
+        })
+
+        const response = await api.get(
+          `/admin/workflows-executions?workflow_id=${workflowName}`,
+          adminHeaders
+        )
+
+        expect(response.status).toEqual(200)
+        expect(response.data.workflow_executions).toEqual([
+          expect.objectContaining({
+            workflow_id: workflowName,
+            transaction_id: transactionId,
+            state: TransactionState.REVERTED,
+          }),
+        ])
+
+        const detailResponse = await api.get(
+          `/admin/workflows-executions/${response.data.workflow_executions[0].id}`,
+          adminHeaders
+        )
+
+        expect(detailResponse.status).toEqual(200)
+
+        const steps = Object.values(
+          detailResponse.data.workflow_execution.execution.steps
+        )
+
+        expect(steps).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: expect.stringContaining("failing-step"),
+              invoke: expect.objectContaining({ state: "failed" }),
+            }),
+            expect.objectContaining({
+              id: expect.stringContaining("reverted-step-1"),
+              compensate: expect.objectContaining({ state: "reverted" }),
+            }),
+          ])
+        )
+      })
     })
 
     describe("POST /admin/workflows-executions/[workflow_id]/steps/failure", function () {

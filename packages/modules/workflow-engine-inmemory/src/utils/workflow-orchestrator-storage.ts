@@ -30,6 +30,7 @@ import { type CronExpression, parseExpression } from "cron-parser"
 import { WorkflowExecution } from "../models/workflow-execution"
 
 const THIRTY_MINUTES_IN_MS = 1000 * 60 * 30
+const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7
 
 const doneStates = new Set([
   TransactionStepState.DONE,
@@ -114,6 +115,12 @@ export class InMemoryDistributedTransactionStorage
 
   private clearTimeout_: NodeJS.Timeout
   private isLocked: Map<string, boolean> = new Map()
+
+  /**
+   * Retention time, in seconds, of failed and reverted executions of
+   * workflows that don't set their own retention time.
+   */
+  private failedExecutionRetentionTime_: number = SEVEN_DAYS_IN_SECONDS
 
   constructor({
     workflowExecutionService,
@@ -360,12 +367,6 @@ export class InMemoryDistributedTransactionStorage
     this.isLocked.set(key, true)
 
     try {
-      /**
-       * Store the retention time only if the transaction is done, failed or reverted.
-       * From that moment, this tuple can be later on archived or deleted after the retention time.
-       */
-      const { retentionTime } = options ?? {}
-
       const hasFinished = finishedStates.has(data.flow.state)
 
       await this.#preventRaceConditionExecutionIfNecessary({
@@ -373,13 +374,6 @@ export class InMemoryDistributedTransactionStorage
         key,
         options,
       })
-
-      // Only store retention time if it's provided
-      if (retentionTime) {
-        Object.assign(data, {
-          retention_time: retentionTime,
-        })
-      }
 
       // Store in memory
       const isNotStarted = data.flow.state === TransactionState.NOT_STARTED
@@ -401,6 +395,19 @@ export class InMemoryDistributedTransactionStorage
         } as any)
 
         TransactionCheckpoint.mergeCheckpoints(data, storedData)
+      }
+
+      /**
+       * Store the retention time only if the transaction is done, failed or reverted.
+       * From that moment, this tuple can be later on archived or deleted after the retention time.
+       */
+      const retentionTime = this.#getRetentionTime(data.flow, options)
+
+      // Only store retention time if it's provided
+      if (retentionTime) {
+        Object.assign(data, {
+          retention_time: retentionTime,
+        })
       }
 
       const { flow, context, errors } = data
@@ -432,6 +439,27 @@ export class InMemoryDistributedTransactionStorage
     } finally {
       this.isLocked.delete(key)
     }
+  }
+
+  /**
+   * Returns the workflow's own retention time if set. Otherwise, failed and reverted
+   * executions are kept for the default failure retention time so they can be inspected.
+   * Idempotent workflows are excluded, since a kept execution would be returned instead
+   * of running the workflow again when retried with the same transaction id.
+   */
+  #getRetentionTime(
+    flow: TransactionFlow,
+    options?: TransactionOptions
+  ): number | undefined {
+    if (options?.retentionTime) {
+      return options.retentionTime
+    }
+
+    if (failedStates.has(flow.state) && !options?.idempotent) {
+      return this.failedExecutionRetentionTime_
+    }
+
+    return
   }
 
   async #preventRaceConditionExecutionIfNecessary({

@@ -41,6 +41,7 @@ enum JobType {
 }
 
 const THIRTY_MINUTES_IN_MS = 1000 * 60 * 30
+const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7
 const REPEATABLE_CLEARER_JOB_ID = "clear-expired-executions"
 
 const doneStates = new Set([
@@ -90,6 +91,12 @@ export class RedisDistributedTransactionStorage
   private cleanerWorkerOptions_: Omit<WorkerOptions, "connection">
 
   #isWorkerMode: boolean = false
+
+  /**
+   * Retention time, in seconds, of failed and reverted executions of
+   * workflows that don't set their own retention time.
+   */
+  private failedExecutionRetentionTime_: number = SEVEN_DAYS_IN_SECONDS
 
   constructor({
     workflowExecutionService,
@@ -539,11 +546,6 @@ export class RedisDistributedTransactionStorage
     ttl?: number,
     options?: TransactionOptions
   ): Promise<TransactionCheckpoint> {
-    /**
-     * Store the retention time only if the transaction is done, failed or reverted.
-     */
-    const { retentionTime } = options ?? {}
-
     let lockAcquired = false
 
     let storedData: TransactionCheckpoint | undefined
@@ -576,6 +578,11 @@ export class RedisDistributedTransactionStorage
       const shouldSetNX =
         data.flow.state === TransactionState.NOT_STARTED &&
         !data.flow.transactionId.startsWith("auto-")
+
+      /**
+       * Store the retention time only if the transaction is done, failed or reverted.
+       */
+      const retentionTime = this.#getRetentionTime(data.flow, options)
 
       if (retentionTime) {
         Object.assign(data, {
@@ -870,6 +877,27 @@ export class RedisDistributedTransactionStorage
   async #releaseLock(key: string): Promise<void> {
     const lockKey = this.#getLockKey(key)
     await this.redisClient.del(lockKey)
+  }
+
+  /**
+   * Returns the workflow's own retention time if set. Otherwise, failed and reverted
+   * executions are kept for the default failure retention time so they can be inspected.
+   * Idempotent workflows are excluded, since a kept execution would be returned instead
+   * of running the workflow again when retried with the same transaction id.
+   */
+  #getRetentionTime(
+    flow: TransactionFlow,
+    options?: TransactionOptions
+  ): number | undefined {
+    if (options?.retentionTime) {
+      return options.retentionTime
+    }
+
+    if (failedStates.has(flow.state) && !options?.idempotent) {
+      return this.failedExecutionRetentionTime_
+    }
+
+    return
   }
 
   async #preventRaceConditionExecutionIfNecessary({

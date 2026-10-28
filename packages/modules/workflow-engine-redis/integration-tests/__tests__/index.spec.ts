@@ -1394,6 +1394,270 @@ moduleIntegrationTestRunner<IWorkflowEngineService>({
           expect(runningExec?.state).toBe(TransactionState.INVOKING)
         })
       })
+
+      describe("Failed and reverted executions retention", function () {
+        const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7
+
+        const getStorage = () =>
+          (workflowOrcModule as any).workflowOrchestratorService_[
+            "redisDistributedTransactionStorage_"
+          ]
+
+        const createRevertingWorkflow = (
+          config: { retentionTime?: number; idempotent?: boolean } = {},
+          invoke: () => never = () => {
+            throw new Error("I am reverting")
+          }
+        ) => {
+          const workflowId = "reverting-workflow-" + ulid()
+          const revertingStep = createStep(
+            "reverting-step-" + ulid(),
+            invoke,
+            () => {
+              return new StepResponse("reverted")
+            }
+          )
+
+          createWorkflow({ name: workflowId, store: true, ...config }, () => {
+            revertingStep()
+            return new WorkflowResponse("reverted")
+          })
+
+          return workflowId
+        }
+
+        it("should keep a reverted execution with the default retention time when the workflow doesn't set one", async () => {
+          const workflowId = createRevertingWorkflow()
+          const transactionId = "trx-reverted-" + ulid()
+
+          await workflowOrcModule.run(workflowId, {
+            transactionId,
+            throwOnError: false,
+          })
+
+          const executions = await workflowOrcModule.listWorkflowExecutions({
+            transaction_id: transactionId,
+          })
+
+          expect(executions).toHaveLength(1)
+          expect(executions[0]).toEqual(
+            expect.objectContaining({
+              state: TransactionState.REVERTED,
+              retention_time: SEVEN_DAYS_IN_SECONDS,
+            })
+          )
+        })
+
+        it("should keep a failed execution with the default retention time when the workflow doesn't set one", async () => {
+          const workflowId = "failed-workflow-" + ulid()
+          const step1 = createStep(
+            "step-1-" + ulid(),
+            () => {
+              return new StepResponse("step 1 done")
+            },
+            () => {
+              throw new Error("I can't compensate")
+            }
+          )
+          const failingStep = createStep("failing-step-" + ulid(), () => {
+            throw new Error("I am failing")
+          })
+
+          createWorkflow({ name: workflowId, store: true }, () => {
+            step1()
+            failingStep()
+            return new WorkflowResponse("failed")
+          })
+
+          const transactionId = "trx-failed-" + ulid()
+          await workflowOrcModule.run(workflowId, {
+            transactionId,
+            throwOnError: false,
+          })
+
+          const executions = await workflowOrcModule.listWorkflowExecutions({
+            transaction_id: transactionId,
+          })
+
+          expect(executions).toHaveLength(1)
+          expect(executions[0]).toEqual(
+            expect.objectContaining({
+              state: TransactionState.FAILED,
+              retention_time: SEVEN_DAYS_IN_SECONDS,
+            })
+          )
+        })
+
+        it("should delete a done execution when the workflow doesn't set a retention time", async () => {
+          const workflowId = "done-workflow-" + ulid()
+          const step1 = createStep("step-1-" + ulid(), () => {
+            return new StepResponse("step 1 done")
+          })
+
+          createWorkflow({ name: workflowId, store: true }, () => {
+            step1()
+            return new WorkflowResponse("done")
+          })
+
+          const transactionId = "trx-done-" + ulid()
+          await workflowOrcModule.run(workflowId, {
+            transactionId,
+            throwOnError: true,
+          })
+
+          const executions = await workflowOrcModule.listWorkflowExecutions({
+            transaction_id: transactionId,
+          })
+
+          expect(executions).toHaveLength(0)
+        })
+
+        it("should use the workflow's own retention time for a reverted execution", async () => {
+          const workflowId = createRevertingWorkflow({ retentionTime: 60 })
+          const transactionId = "trx-own-retention-" + ulid()
+
+          await workflowOrcModule.run(workflowId, {
+            transactionId,
+            throwOnError: false,
+          })
+
+          const executions = await workflowOrcModule.listWorkflowExecutions({
+            transaction_id: transactionId,
+          })
+
+          expect(executions).toHaveLength(1)
+          expect(executions[0]).toEqual(
+            expect.objectContaining({
+              state: TransactionState.REVERTED,
+              retention_time: 60,
+            })
+          )
+        })
+
+        it("should keep a reverted child workflow execution and its failed parent with the default retention time", async () => {
+          const childWorkflowId = "child-workflow-" + ulid()
+          const parentWorkflowId = "parent-workflow-" + ulid()
+          const failingStep = createStep("child-failing-step-" + ulid(), () => {
+            throw new Error("I am failing")
+          })
+
+          const childWorkflow = createWorkflow(
+            { name: childWorkflowId, store: true },
+            () => {
+              failingStep()
+              return new WorkflowResponse("child")
+            }
+          )
+
+          createWorkflow({ name: parentWorkflowId, store: true }, () => {
+            childWorkflow.runAsStep({ input: {} })
+            return new WorkflowResponse("parent")
+          })
+
+          await workflowOrcModule.run(parentWorkflowId, {
+            transactionId: "trx-parent-" + ulid(),
+            throwOnError: false,
+          })
+
+          const [childExecution] =
+            await workflowOrcModule.listWorkflowExecutions({
+              workflow_id: childWorkflowId,
+            })
+
+          expect(childExecution).toEqual(
+            expect.objectContaining({
+              state: TransactionState.REVERTED,
+              retention_time: SEVEN_DAYS_IN_SECONDS,
+            })
+          )
+          expect(
+            (childExecution.execution as any).metadata.parentStepIdempotencyKey
+          ).toBeDefined()
+
+          const [parentExecution] =
+            await workflowOrcModule.listWorkflowExecutions({
+              workflow_id: parentWorkflowId,
+            })
+
+          expect(parentExecution).toEqual(
+            expect.objectContaining({
+              state: TransactionState.FAILED,
+              retention_time: SEVEN_DAYS_IN_SECONDS,
+            })
+          )
+        })
+
+        it("should delete a reverted execution of an idempotent workflow and run it again when retried", async () => {
+          const invoke = jest.fn(() => {
+            throw new Error("I am reverting")
+          })
+          const workflowId = createRevertingWorkflow(
+            { idempotent: true },
+            invoke
+          )
+          const transactionId = "trx-idempotent-" + ulid()
+
+          await workflowOrcModule.run(workflowId, {
+            transactionId,
+            throwOnError: false,
+          })
+
+          let executions = await workflowOrcModule.listWorkflowExecutions({
+            transaction_id: transactionId,
+          })
+
+          expect(executions).toHaveLength(0)
+
+          await workflowOrcModule.run(workflowId, {
+            transactionId,
+            throwOnError: false,
+          })
+
+          executions = await workflowOrcModule.listWorkflowExecutions({
+            transaction_id: transactionId,
+          })
+
+          expect(executions).toHaveLength(0)
+          expect(invoke).toHaveBeenCalledTimes(2)
+        })
+
+        it("should remove a kept reverted execution only once its retention time has passed", async () => {
+          const workflowId = createRevertingWorkflow()
+          const trx_default = "trx-default-" + ulid()
+          const trx_expired = "trx-expired-" + ulid()
+
+          await workflowOrcModule.run(workflowId, {
+            transactionId: trx_default,
+            throwOnError: false,
+          })
+
+          getStorage().failedExecutionRetentionTime_ = 1
+
+          await workflowOrcModule.run(workflowId, {
+            transactionId: trx_expired,
+            throwOnError: false,
+          })
+
+          expect(await workflowOrcModule.listWorkflowExecutions()).toHaveLength(
+            2
+          )
+
+          await setTimeout(2000)
+
+          await getStorage().clearExpiredExecutions()
+
+          const remainingExecutions =
+            await workflowOrcModule.listWorkflowExecutions()
+
+          expect(remainingExecutions).toHaveLength(1)
+          expect(remainingExecutions[0]).toEqual(
+            expect.objectContaining({
+              transaction_id: trx_default,
+              retention_time: SEVEN_DAYS_IN_SECONDS,
+            })
+          )
+        })
+      })
     })
   },
 })
