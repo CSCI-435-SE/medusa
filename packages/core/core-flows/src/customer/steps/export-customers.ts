@@ -47,6 +47,17 @@ export const exportCustomersStepId = "export-customers"
 
 // The first five columns match the customer import CSV, so an exported file
 // can be imported again.
+const EXPORT_COLUMNS = [
+  "Email",
+  "First Name",
+  "Last Name",
+  "Company",
+  "Phone",
+  "Customer ID",
+  "Has Account",
+  "Created At",
+]
+
 const normalizeCustomerForExport = (customer: CustomerDTO): object => {
   return {
     Email: customer.email || "",
@@ -63,7 +74,8 @@ const normalizeCustomerForExport = (customer: CustomerDTO): object => {
 /**
  * This step exports the customers matching the filters to a CSV file and
  * uploads it with the File Module. It retrieves the customers in batches, so
- * any pagination in the filters is ignored.
+ * any pagination in the filters is ignored. The file always has a header row,
+ * even when no customers match.
  */
 export const exportCustomersStep = createStep(
   exportCustomersStepId,
@@ -81,7 +93,7 @@ export const exportCustomersStep = createStep(
       ? parseInt(input?.batch_size as string, 10)
       : 50
 
-    let page = 0
+    let lastId: string | undefined
     let hasHeader = false
 
     const fields = deduplicate([
@@ -96,14 +108,23 @@ export const exportCustomersStep = createStep(
       "created_at",
     ])
 
+    const filter = input.filter ?? {}
+
     while (true) {
+      // Page with an id cursor instead of an offset, so customers sharing a
+      // created_at, or added and deleted during the export, aren't skipped or
+      // repeated. The cursor goes in $and so it can't replace an id filter.
       const { data: customers } = await query.graph({
         entity: "customer",
-        filters: input.filter ?? {},
+        filters: lastId
+          ? {
+              ...filter,
+              $and: [...(filter.$and ?? []), { id: { $gt: lastId } }],
+            }
+          : filter,
         pagination: {
-          skip: page * pageSize,
           take: pageSize,
-          order: { created_at: "ASC" },
+          order: { id: "ASC" },
         },
         fields,
       })
@@ -117,6 +138,7 @@ export const exportCustomersStep = createStep(
           normalizeCustomerForExport(customer as CustomerDTO)
         ),
         {
+          keys: EXPORT_COLUMNS,
           prependHeader: !hasHeader,
           preventCsvInjection: true,
           emptyFieldValue: "",
@@ -129,12 +151,15 @@ export const exportCustomersStep = createStep(
       }
 
       hasHeader = true
+      lastId = customers[customers.length - 1].id
 
       if (customers.length < pageSize) {
         break
       }
+    }
 
-      page += 1
+    if (!hasHeader) {
+      writeStream.write(EXPORT_COLUMNS.join(","))
     }
 
     writeStream.end()

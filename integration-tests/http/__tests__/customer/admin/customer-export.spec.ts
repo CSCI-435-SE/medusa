@@ -15,11 +15,17 @@ import {
 
 jest.setTimeout(50000)
 
-const getCSVRows = async (filePath: string) => {
+const HEADER =
+  "Email,First Name,Last Name,Company,Phone,Customer ID,Has Account,Created At"
+
+const getCSV = async (filePath: string) => {
   const asLocalPath = filePath.replace("http://localhost:9000", os.tmpdir())
-  const fileContent = await fs.readFile(asLocalPath, { encoding: "utf-8" })
+  const content = await fs.readFile(asLocalPath, { encoding: "utf-8" })
   await fs.rm(path.dirname(asLocalPath), { recursive: true, force: true })
-  return csv2json(fileContent) as Record<string, unknown>[]
+  return {
+    content,
+    rows: csv2json(content) as Record<string, unknown>[],
+  }
 }
 
 medusaIntegrationTestRunner({
@@ -81,13 +87,14 @@ medusaIntegrationTestRunner({
         })
       )
 
-      return getCSVRows(notifications[0].data.file.url)
+      return getCSV(notifications[0].data.file.url)
     }
 
     describe("POST /admin/customers/export", () => {
       it("exports every customer with the import columns first", async () => {
-        const rows = await exportCustomers()
+        const { content, rows } = await exportCustomers()
 
+        expect(content.split("\n")[0]).toEqual(HEADER)
         expect(rows).toHaveLength(2)
         expect(Object.keys(rows[0]).slice(0, 5)).toEqual([
           "Email",
@@ -114,7 +121,7 @@ medusaIntegrationTestRunner({
       })
 
       it("exports only the customers matching the filters", async () => {
-        const rows = await exportCustomers("?q=sam")
+        const { rows } = await exportCustomers("?q=sam")
 
         expect(rows).toHaveLength(1)
         expect(rows[0]).toEqual(
@@ -123,9 +130,15 @@ medusaIntegrationTestRunner({
       })
 
       it("ignores pagination and exports every matching customer", async () => {
-        const rows = await exportCustomers("?limit=1&offset=1")
+        const { rows } = await exportCustomers("?limit=1&offset=1")
 
         expect(rows).toHaveLength(2)
+      })
+
+      it("writes only the header row when no customers match", async () => {
+        const { content } = await exportCustomers("?q=no-such-customer")
+
+        expect(content).toEqual(HEADER)
       })
     })
   },
