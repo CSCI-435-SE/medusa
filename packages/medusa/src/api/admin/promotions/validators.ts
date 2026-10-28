@@ -207,6 +207,15 @@ export const AdminCreatePromotion = WithAdditionalData(
   }
 )
 
+export type AdminDuplicatePromotionType = z.infer<typeof DuplicatePromotion>
+export const DuplicatePromotion = z
+  .object({
+    code: z.string().trim().min(1),
+  })
+  .strict()
+
+export const AdminDuplicatePromotion = WithAdditionalData(DuplicatePromotion)
+
 export type AdminUpdatePromotionType = z.infer<typeof UpdatePromotion>
 export const UpdatePromotion = z
   .object({

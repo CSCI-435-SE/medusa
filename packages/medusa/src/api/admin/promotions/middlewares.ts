@@ -11,6 +11,7 @@ import { Entities } from "./query-config"
 import {
   AdminCreatePromotion,
   AdminCreatePromotionRule,
+  AdminDuplicatePromotion,
   AdminGetPromotionParams,
   AdminGetPromotionRuleParams,
   AdminGetPromotionRuleTypeParams,
@@ -51,6 +52,23 @@ export const adminPromotionRoutesMiddlewares: MiddlewareRoute[] = [
     matcher: "/admin/promotions",
     middlewares: [
       validateAndTransformBody(AdminCreatePromotion),
+      validateAndTransformQuery(
+        AdminGetPromotionParams,
+        QueryConfig.retrieveTransformQueryConfig
+      ),
+    ],
+    policies: [
+      {
+        resource: Entities.promotion,
+        operation: PolicyOperation.create,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/promotions/:id/duplicate",
+    middlewares: [
+      validateAndTransformBody(AdminDuplicatePromotion),
       validateAndTransformQuery(
         AdminGetPromotionParams,
         QueryConfig.retrieveTransformQueryConfig

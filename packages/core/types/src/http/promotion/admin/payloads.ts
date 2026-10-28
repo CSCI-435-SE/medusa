@@ -243,3 +243,10 @@ export interface BatchUpdatePromotionRulesReq {
    */
   rules: AdminUpdatePromotionRule[]
 }
+
+export interface AdminDuplicatePromotion {
+  /**
+   * The code of the new promotion. It must not be used by another promotion.
+   */
+  code: string
+}
