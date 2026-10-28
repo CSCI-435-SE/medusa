@@ -157,6 +157,43 @@ export class Promotion {
   }
 
   /**
+   * This method duplicates a promotion, including its conditions, target rules
+   * and buy rules. The copy is always a draft with a usage count of 0, and it
+   * isn't added to the original's campaign. It sends a request to the
+   * Duplicate Promotion API route.
+   *
+   * @param id - The ID of the promotion to duplicate.
+   * @param body - The code of the new promotion.
+   * @param query - Configure the fields to retrieve in the new promotion.
+   * @param headers - Headers to pass in the request.
+   * @returns The new promotion's details.
+   *
+   * @example
+   * sdk.admin.promotion.duplicate("promo_123", {
+   *   code: "FALL20",
+   * })
+   * .then(({ promotion }) => {
+   *   console.log(promotion)
+   * })
+   */
+  async duplicate(
+    id: string,
+    body: HttpTypes.AdminDuplicatePromotion,
+    query?: HttpTypes.AdminGetPromotionParams,
+    headers?: ClientHeaders
+  ) {
+    return await this.client.fetch<HttpTypes.AdminPromotionResponse>(
+      `/admin/promotions/${id}/duplicate`,
+      {
+        method: "POST",
+        headers,
+        body,
+        query,
+      }
+    )
+  }
+
+  /**
    * This method updates a promotion. It sends a request to the
    * [Update Promotion](https://docs.medusajs.com/api/admin#promotions_postpromotionsid)
    * API route.
