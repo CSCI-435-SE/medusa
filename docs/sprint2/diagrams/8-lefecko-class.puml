@@ -1,0 +1,238 @@
+@startuml issue8-class-diagram
+' Issue #8 / PR #79: full multi-step "Edit Product" flow in the admin dashboard.
+' Colors: grey = existing code we had to understand, green = new, orange = modified.
+
+title Issue #8 - Full Edit Product Flow: Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam noteBackgroundColor #FFF3C4
+skinparam noteBorderColor #D9A400
+skinparam class {
+  BackgroundColor #EEEEEE
+  BorderColor #777777
+  BackgroundColor<<new>> #C8E6C9
+  BorderColor<<new>> #2E7D32
+  BackgroundColor<<modified>> #FFE0B2
+  BorderColor<<modified>> #E65100
+}
+
+' ---------------------------------------------------------------
+' EXISTING code (grey)
+' ---------------------------------------------------------------
+class RouteFocusModal <<component>> {
+  + Form(form)
+  --
+  handleSuccess() closes modal
+}
+
+class ProductCreateVariantsSection <<component>> {
+  options and variants builder
+}
+
+class "useExtendableForm" as UseExtendableForm <<hook>> {
+  + defaultValues
+  + schema : ProductCreateSchema
+}
+
+class "useProduct" as UseProduct <<hook>> {
+  + product
+  + isPending
+}
+
+class "useUpdateProduct" as UseUpdateProduct <<hook>> {
+  + mutateAsync(AdminUpdateProduct)
+}
+
+class "useLinkProductOptions" as UseLinkProductOptions <<hook>> {
+  + mutateAsync(AdminLinkProductOptions)
+}
+
+class "useProductVariantsInventoryItemsBatch" as UseInvBatch <<hook>> {
+  + mutateAsync(inventory kit changes)
+}
+
+class "sdk.admin" as Sdk <<client>> {
+  + product.update()
+  + product.batchVariants()
+  + product.linkOptions()
+}
+
+class "sdk.admin.upload" as UploadSdk <<client>> {
+  + create(files) : uploaded URLs
+}
+
+' ---------------------------------------------------------------
+' MODIFIED code (orange)
+' ---------------------------------------------------------------
+class ProductGeneralSection <<modified>> {
+  + render()
+  --
+  + "Edit Product" Button -> Link to "edit-all"
+}
+
+class ProductCreateDetailsForm <<modified>> {
+  + form : UseFormReturn
+  + mode : "create" | "edit"
+}
+
+class "get-route.map.tsx" as RouteMap <<modified>> {
+  + route "edit-all" (lazy import)
+}
+
+' ---------------------------------------------------------------
+' NEW code (green)
+' ---------------------------------------------------------------
+class ProductEditFull <<new>> {
+  - id : string (route param)
+  --
+  + render()
+  - loads product, store, regions, price prefs
+}
+
+class ProductEditFullForm <<new>> {
+  - tab : Tab
+  - form : UseFormReturn
+  --
+  + handleSubmit()
+  + onNext()
+  - getTabState(tab)
+}
+
+class "product-edit-full/utils.ts" as EditUtils <<new>> {
+  + PRODUCT_EDIT_FULL_FIELDS
+  + mapProductToFormValues(product)
+  + mapVariantToFormValue(variant)
+  + buildProductEditRequests(values, product, media)
+}
+
+class ProductEditRequests <<new>> {
+  + variantDeletes?
+  + optionsAdd?
+  + variantsBatch?
+  + inventoryItems?
+  + optionsRemove?
+  + product
+}
+
+class "mergeVariantCombinations" as MergeVariants <<new>> {
+  + (variants, optionRecords) : Variant[]
+}
+
+class "useBatchProductVariants" as UseBatchVariants <<new>> {
+  + mutateAsync(create / update / delete)
+  --
+  invalidates variants, product, inventory caches
+}
+
+' ---------------------------------------------------------------
+' RELATIONSHIPS
+' ---------------------------------------------------------------
+ProductGeneralSection ..> RouteMap : navigates to\n"edit-all"
+RouteMap ..> ProductEditFull : lazy loads
+ProductEditFull *-- RouteFocusModal : wraps the flow\nin a modal
+ProductEditFull --> ProductEditFullForm : renders once data\nhas loaded
+ProductEditFull ..> UseProduct
+ProductEditFull ..> EditUtils : PRODUCT_EDIT_FULL_FIELDS
+
+ProductEditFullForm --> ProductCreateDetailsForm : reuses (mode="edit")
+ProductCreateDetailsForm --> ProductCreateVariantsSection : forwards mode
+ProductCreateVariantsSection ..> MergeVariants : merges regenerated\nvariant combinations
+ProductEditFullForm ..> UseExtendableForm
+ProductEditFullForm ..> EditUtils
+EditUtils ..> ProductEditRequests : builds
+ProductEditFullForm ..> ProductEditRequests : consumes
+
+ProductEditFullForm ..> UseBatchVariants
+ProductEditFullForm ..> UseLinkProductOptions
+ProductEditFullForm ..> UseInvBatch
+ProductEditFullForm ..> UseUpdateProduct
+ProductEditFullForm ..> UploadSdk : uploads new images\n(called directly, no hook)
+
+UseBatchVariants ..> Sdk
+UseLinkProductOptions ..> Sdk
+UseInvBatch ..> Sdk
+UseUpdateProduct ..> Sdk
+
+' ---------------------------------------------------------------
+' ANNOTATIONS
+' ---------------------------------------------------------------
+note top of ProductEditFull
+  The form is not rendered until product, store, regions
+  and price preferences have all loaded, because the
+  form's default values are computed only once on the
+  first render.
+end note
+
+note right of ProductEditFullForm
+  Nothing is sent to the server until Save. The form is
+  pre-filled from the stored product, and closing the
+  modal triggers the unsaved-changes prompt instead of
+  writing anything.
+
+  Saving takes several requests because no single
+  endpoint can update product fields, options, variants,
+  prices and inventory kits together.
+end note
+
+note bottom of ProductEditFullForm
+  Four separate mutation hooks, one per kind of request.
+  If any request fails, handleSubmit stops, refetches
+  the product and keeps the modal open for a retry.
+end note
+
+note right of ProductCreateDetailsForm
+  Reuse instead of copy: the create flow's UI is
+  reused for editing. A new optional "mode" prop
+  (default "create") keeps the create flow unchanged.
+end note
+
+note bottom of UploadSdk
+  Image upload is the one backend call the form makes
+  directly instead of through a mutation hook. It runs
+  first in handleSubmit, and a failure stops the save so
+  newly added images are not silently dropped.
+end note
+
+note left of UseBatchVariants
+  New because the existing
+  useUpdateProductVariantsBatch can only update. The
+  edit flow also has to create and delete variants.
+end note
+
+note bottom of EditUtils
+  Diffs the form values against the stored product and
+  only emits requests for what actually changed. Each
+  field of ProductEditRequests is optional so unchanged
+  parts are skipped.
+end note
+
+note right of ProductEditRequests
+  Field order is the order requests must be sent:
+  deletes, optionsAdd, variantsBatch, inventoryItems,
+  optionsRemove, product. The backend refuses to unlink
+  an option value while a variant still uses it, and a
+  batch runs its operations in parallel.
+end note
+
+note left of ProductGeneralSection
+  The ellipsis menu keeps the quick single-section
+  "Edit" drawer. The new button is a separate entry
+  point to the full flow.
+end note
+
+' ---------------------------------------------------------------
+' LEGEND
+' ---------------------------------------------------------------
+legend right
+  |= Color |= Meaning |
+  |<#EEEEEE>   | Existing code (studied during concept location) |
+  |<#FFE0B2>   | Modified by this issue |
+  |<#C8E6C9>   | New in this issue |
+  Dashed arrow = dependency (uses)
+  Solid arrow = association (holds a reference)
+  Filled diamond = composition (owns)
+endlegend
+
+@enduml
