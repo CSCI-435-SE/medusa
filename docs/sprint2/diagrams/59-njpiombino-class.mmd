@@ -1,0 +1,125 @@
+---
+title: "Issue #59 - Enforce product ID when deleting a product variant (UML Class Diagram)"
+---
+classDiagram
+  direction TB
+
+  %% ---------- HTTP layer ----------
+  class VariantRoute {
+    <<route module: admin/products/[id]/variants/[variant_id]/route.ts>>
+    +GET(req, res) existing
+    +POST(req, res) existing
+    +DELETE(req, res) MODIFIED
+  }
+
+  class AuthenticatedMedusaRequest {
+    <<framework/http>>
+    +params : id, variant_id
+    +scope : MedusaContainer
+    +queryConfig : fields
+  }
+
+  class refetchEntity {
+    <<framework/http utility>>
+    +refetchEntity(entity, idOrFilter, scope, fields) Promise~Entity~
+  }
+
+  class Query {
+    <<framework>>
+    +graph(entity, filters, fields)
+  }
+
+  class errorHandler {
+    <<framework middleware>>
+    +NOT_FOUND maps to 404
+    +INVALID_DATA maps to 400
+  }
+
+  class Error
+
+  class MedusaError {
+    +type : NOT_FOUND
+    +message : string
+  }
+
+  %% ---------- Workflow layer ----------
+  class deleteProductVariantsWorkflow {
+    <<core-flows workflow>>
+    +input : ids string[]
+    +run(input)
+  }
+
+  class deleteProductVariantsStep {
+    <<core-flows step>>
+    +invoke(ids)
+    +compensate(ids)
+  }
+
+  %% ---------- Module layer ----------
+  class IProductModuleService {
+    <<interface>>
+    +softDeleteProductVariants(ids)
+  }
+
+  class MedusaService {
+    <<modules-sdk>>
+    generated CRUD methods
+  }
+
+  class ProductModuleService {
+    +softDeleteProductVariants(ids)
+  }
+
+  class Product {
+    <<data model>>
+    +id : string
+    +variants : hasMany
+  }
+
+  class ProductVariant {
+    <<data model>>
+    +id : string
+    +product_id : string
+  }
+
+  %% ---------- Tests ----------
+  class VariantDeleteSpec {
+    <<integration test: variant.spec.ts>>
+    +deletes variant under its own product
+    +404 for variant under another product
+    +404 for nonexistent variant
+    +404 for already-deleted variant
+  }
+
+  %% ---------- Relationships ----------
+  VariantRoute ..> AuthenticatedMedusaRequest : reads params
+  VariantRoute ..> refetchEntity : NEW guard lookup id + product_id
+  VariantRoute ..> MedusaError : NEW throws NOT_FOUND
+  VariantRoute ..> deleteProductVariantsWorkflow : run ids
+  refetchEntity --> Query : delegates to
+  Query ..> ProductModuleService : resolves variant
+  errorHandler ..> MedusaError : converts to HTTP status
+  Error <|-- MedusaError
+  deleteProductVariantsWorkflow "1" *-- "1..*" deleteProductVariantsStep : composed of
+  deleteProductVariantsStep ..> IProductModuleService : resolves and calls
+  IProductModuleService <|.. ProductModuleService
+  MedusaService <|-- ProductModuleService
+  ProductModuleService --> ProductVariant : manages
+  Product "1" *-- "0..*" ProductVariant : variants
+  VariantDeleteSpec ..> VariantRoute : calls over HTTP
+
+  %% ---------- Annotations ----------
+  note for VariantRoute "(1) Guard lives in the route: it is the only layer\nthat has both IDs from the URL. It runs before the\nworkflow, so a mismatch deletes nothing.\nThe old TODO and commented-out product_id are removed."
+  note for refetchEntity "(2) One lookup by id + product_id. Mismatched,\nnonexistent and already-deleted variants all return\nnothing, so they all get the same 404.\nSame scoping GET and POST in this file already use."
+  note for deleteProductVariantsWorkflow "(3) Deliberately unchanged: a public core-flows API\nthat other code calls. Input stays ids only, so the\nproduct check could not go here without an API change."
+  note for ProductModuleService "(4) softDeleteProductVariants silently ignores unknown\nIDs. This is why the old route answered\n200 deleted true for variants that did not exist."
+  note for Product "(5) Composition: variants cannot exist without their\nproduct and are cascade-deleted with it. product_id\nis the link the fix now enforces."
+  note for errorHandler "(6) The route never sets a status code. Throwing\nMedusaError NOT_FOUND is mapped to 404 centrally."
+  note for VariantDeleteSpec "Legend: amber = new or modified in this issue,\nnavy = existing code. Dashed arrow = dependency,\nsolid arrow = association, filled diamond = composition,\nhollow triangle = inheritance or realization."
+
+  %% ---------- Styling ----------
+  classDef existing fill:#e8edf5,stroke:#1e3461,color:#1e3461
+  classDef changed fill:#fdf3dc,stroke:#c48a1e,stroke-width:3px,color:#5c3d00
+
+  cssClass "AuthenticatedMedusaRequest,refetchEntity,Query,errorHandler,Error,MedusaError,deleteProductVariantsWorkflow,deleteProductVariantsStep,IProductModuleService,MedusaService,ProductModuleService,Product,ProductVariant" existing
+  cssClass "VariantRoute,VariantDeleteSpec" changed
