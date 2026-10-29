@@ -1568,7 +1568,17 @@
       "addTracking": "Add tracking number",
       "sendNotification": "Send notification",
       "sendNotificationHint": "Notify the customer about this shipment.",
-      "toastCreated": "Shipment created successfully."
+      "toastCreated": "Shipment created successfully.",
+      "carrierName": "Carrier name",
+      "trackingStatus": "Tracking status",
+      "trackingStatuses": {
+        "none": "None",
+        "pending": "Pending",
+        "in_transit": "In transit",
+        "delivered": "Delivered",
+        "returned": "Returned",
+        "failed": "Failed"
+      }
     },
     "fulfillment": {
       "cancelWarning": "You are about to cancel a fulfillment. This action cannot be undone.",
@@ -1626,6 +1636,8 @@
       },
       "trackingLabel": "Tracking",
       "shippingFromLabel": "Shipping from",
+      "carrierLabel": "Carrier",
+      "trackingStatusLabel": "Tracking status",
       "itemsLabel": "Items"
     },
     "refund": {

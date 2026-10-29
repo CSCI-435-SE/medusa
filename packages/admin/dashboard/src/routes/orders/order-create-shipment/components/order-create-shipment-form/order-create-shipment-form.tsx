@@ -2,7 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useTranslation } from "react-i18next"
 import * as zod from "zod"
 
-import { Button, clx, Heading, Input, Switch, toast } from "@medusajs/ui"
+import {
+  Button,
+  clx,
+  Heading,
+  Input,
+  Select,
+  Switch,
+  toast,
+} from "@medusajs/ui"
 import { useFieldArray, useForm } from "react-hook-form"
 
 import { Form } from "../../../../../components/common/form"
@@ -12,11 +20,16 @@ import {
 } from "../../../../../components/modals"
 import { KeyboundForm } from "../../../../../components/utilities/keybound-form"
 import { useCreateOrderShipment } from "../../../../../hooks/api"
-import { CreateShipmentSchema } from "./constants"
+import { useDocumentDirection } from "../../../../../hooks/use-document-direction"
+import { CreateShipmentSchema, TRACKING_STATUSES } from "./constants"
 import {
   ExtendedOrderFulfillment,
   ExtendedOrder,
 } from "../../../order-detail/constants"
+
+// Select items can't use an empty value, so "None" uses this one and is
+// turned back into undefined when picked.
+const NO_TRACKING_STATUS = "none"
 
 type OrderCreateFulfillmentFormProps = {
   order: ExtendedOrder
@@ -29,12 +42,14 @@ export function OrderCreateShipmentForm({
 }: OrderCreateFulfillmentFormProps) {
   const { t } = useTranslation()
   const { handleSuccess } = useRouteModal()
+  const direction = useDocumentDirection()
 
   const { mutateAsync: createShipment, isPending: isMutating } =
     useCreateOrderShipment(order.id, fulfillment?.id ?? "")
 
   const form = useForm<zod.infer<typeof CreateShipmentSchema>>({
     defaultValues: {
+      carrier_name: "",
       send_notification: !order.no_notification,
     },
     resolver: zodResolver(CreateShipmentSchema),
@@ -54,6 +69,12 @@ export function OrderCreateShipmentForm({
         label_url: l.label_url || "#",
       }))
 
+    const carrierName = data.carrier_name?.trim()
+    const metadata = {
+      ...(carrierName && { carrier_name: carrierName }),
+      ...(data.tracking_status && { tracking_status: data.tracking_status }),
+    }
+
     await createShipment(
       {
         items:
@@ -65,6 +86,7 @@ export function OrderCreateShipmentForm({
             })) || [],
         labels: [...addedLabels, ...(fulfillment?.labels || [])],
         no_notification: !data.send_notification,
+        ...(Object.keys(metadata).length > 0 && { metadata }),
       },
       {
         onSuccess: () => {
@@ -186,6 +208,68 @@ export function OrderCreateShipmentForm({
                   >
                     {t("orders.shipment.addTracking")}
                   </Button>
+                </div>
+
+                <div className="mt-8 grid grid-cols-1 gap-x-4 gap-y-2 pt-8 md:grid-cols-2">
+                  <Form.Field
+                    control={form.control}
+                    name="carrier_name"
+                    render={({ field }) => {
+                      return (
+                        <Form.Item>
+                          <Form.Label optional>
+                            {t("orders.shipment.carrierName")}
+                          </Form.Label>
+                          <Form.Control>
+                            <Input {...field} placeholder="UPS" />
+                          </Form.Control>
+                          <Form.ErrorMessage />
+                        </Form.Item>
+                      )
+                    }}
+                  />
+                  <Form.Field
+                    control={form.control}
+                    name="tracking_status"
+                    render={({ field: { onChange, ref, value, ...field } }) => {
+                      return (
+                        <Form.Item>
+                          <Form.Label optional>
+                            {t("orders.shipment.trackingStatus")}
+                          </Form.Label>
+                          <Form.Control>
+                            <Select
+                              dir={direction}
+                              value={value ?? NO_TRACKING_STATUS}
+                              onValueChange={(v) =>
+                                onChange(
+                                  v === NO_TRACKING_STATUS ? undefined : v
+                                )
+                              }
+                              {...field}
+                            >
+                              <Select.Trigger ref={ref}>
+                                <Select.Value />
+                              </Select.Trigger>
+                              <Select.Content>
+                                <Select.Item value={NO_TRACKING_STATUS}>
+                                  {t("orders.shipment.trackingStatuses.none")}
+                                </Select.Item>
+                                {TRACKING_STATUSES.map((status) => (
+                                  <Select.Item key={status} value={status}>
+                                    {t(
+                                      `orders.shipment.trackingStatuses.${status}`
+                                    )}
+                                  </Select.Item>
+                                ))}
+                              </Select.Content>
+                            </Select>
+                          </Form.Control>
+                          <Form.ErrorMessage />
+                        </Form.Item>
+                      )
+                    }}
+                  />
                 </div>
 
                 <div className="mt-8 pt-8 ">

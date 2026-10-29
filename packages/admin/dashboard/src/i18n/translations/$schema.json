@@ -6126,6 +6126,44 @@
             },
             "toastCreated": {
               "type": "string"
+            },
+            "carrierName": {
+              "type": "string"
+            },
+            "trackingStatus": {
+              "type": "string"
+            },
+            "trackingStatuses": {
+              "type": "object",
+              "properties": {
+                "none": {
+                  "type": "string"
+                },
+                "pending": {
+                  "type": "string"
+                },
+                "in_transit": {
+                  "type": "string"
+                },
+                "delivered": {
+                  "type": "string"
+                },
+                "returned": {
+                  "type": "string"
+                },
+                "failed": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "none",
+                "pending",
+                "in_transit",
+                "delivered",
+                "returned",
+                "failed"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -6136,7 +6174,10 @@
             "addTracking",
             "sendNotification",
             "sendNotificationHint",
-            "toastCreated"
+            "toastCreated",
+            "carrierName",
+            "trackingStatus",
+            "trackingStatuses"
           ],
           "additionalProperties": false
         },
@@ -6349,6 +6390,12 @@
             "shippingFromLabel": {
               "type": "string"
             },
+            "carrierLabel": {
+              "type": "string"
+            },
+            "trackingStatusLabel": {
+              "type": "string"
+            },
             "itemsLabel": {
               "type": "string"
             }
@@ -6381,6 +6428,8 @@
             "toast",
             "trackingLabel",
             "shippingFromLabel",
+            "carrierLabel",
+            "trackingStatusLabel",
             "itemsLabel"
           ],
           "additionalProperties": false
