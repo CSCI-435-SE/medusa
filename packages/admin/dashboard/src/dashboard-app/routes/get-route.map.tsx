@@ -87,6 +87,11 @@ export function getRouteMap({
                             import("../../routes/products/product-edit"),
                         },
                         {
+                          path: "duplicate",
+                          lazy: () =>
+                            import("../../routes/products/product-duplicate"),
+                        },
+                        {
                           // Full multi-step edit flow (issue #8), opened by the
                           // "Edit Product" button on the detail page.
                           path: "edit-all",
@@ -513,6 +518,13 @@ export function getRouteMap({
                 {
                   path: "",
                   lazy: () => import("../../routes/promotions/promotion-list"),
+                  children: [
+                    {
+                      path: "import",
+                      lazy: () =>
+                        import("../../routes/promotions/promotion-import"),
+                    },
+                  ],
                 },
                 {
                   path: "create",

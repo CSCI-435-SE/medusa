@@ -20,6 +20,9 @@ import {
   AdminUpdatePromotion,
   AdminUpdatePromotionRule,
 } from "./validators"
+import multer from "multer"
+
+const upload = multer({ storage: multer.memoryStorage() })
 
 export const adminPromotionRoutesMiddlewares: MiddlewareRoute[] = [
   {
@@ -74,6 +77,17 @@ export const adminPromotionRoutesMiddlewares: MiddlewareRoute[] = [
         QueryConfig.retrieveTransformQueryConfig
       ),
     ],
+    policies: [
+      {
+        resource: Entities.promotion,
+        operation: PolicyOperation.create,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/promotions/import",
+    middlewares: [upload.single("file")],
     policies: [
       {
         resource: Entities.promotion,

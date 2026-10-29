@@ -250,3 +250,15 @@ export interface AdminDuplicatePromotion {
    */
   code: string
 }
+
+export interface AdminImportPromotionsRequest {
+  /**
+   * The CSV file to import the promotions from, with the columns Code, Type,
+   * Status, Automatic, Tax Inclusive, Usage Limit, Campaign ID, Discount Type,
+   * Discount Value, Currency Code, Target, Allocation, Max Quantity,
+   * Buy Min Quantity, Apply To Quantity, Rules, Target Rules and Buy Rules.
+   *
+   * It's an uploaded file of type [File](https://developer.mozilla.org/en-US/docs/Web/API/File).
+   */
+  file: File
+}

@@ -144,6 +144,7 @@
     "reset": "Reset",
     "confirm": "Confirm",
     "edit": "Edit",
+    "duplicate": "Duplicate",
     "addItems": "Add items",
     "download": "Download",
     "clear": "Clear",
@@ -470,6 +471,11 @@
     "domain": "Products",
     "list": {
       "noRecordsMessage": "Create your first product to start selling."
+    },
+    "duplicate": {
+      "header": "Duplicate Product",
+      "description": "Create a draft copy of this product with its options, variants, prices and images.",
+      "successToast": "Product {{title}} was successfully created as a draft."
     },
     "edit": {
       "header": "Edit Product",
@@ -2474,6 +2480,24 @@
       "header": "Duplicate Promotion",
       "description": "Create a draft copy of this promotion with its settings and conditions. The copy isn't added to a campaign.",
       "successToast": "Promotion {{code}} was created as a draft"
+    },
+    "import": {
+      "header": "Import Promotions",
+      "description": "Import promotions by providing a CSV file in a pre-defined format",
+      "uploadLabel": "Upload promotions",
+      "uploadHint": "Drag and drop a CSV file or click to upload",
+      "fileTooLarge": "The file is larger than the {{size}} upload limit",
+      "rowErrors": "No promotions were imported. Fix these rows and try again:",
+      "successToast": "Imported {{count}} promotions",
+      "upload": {
+        "title": "Upload a CSV file",
+        "description": "Each row creates a new promotion. Rule columns hold rules in the form attribute:operator:value1|value2, separated by ;. Every row is checked first, and if any row has a problem no promotions are imported.",
+        "importing": "Importing..."
+      },
+      "template": {
+        "title": "Unsure about how to arrange your list?",
+        "description": "Download the template below to ensure you are following the correct format."
+      }
     }
   },
   "campaigns": {

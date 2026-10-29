@@ -1,4 +1,9 @@
-import { GlobeEurope, PencilSquare, Trash } from "@medusajs/icons"
+import {
+  GlobeEurope,
+  PencilSquare,
+  SquareTwoStack,
+  Trash,
+} from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
 import {
   Button,
@@ -97,6 +102,11 @@ export const ProductGeneralSection = ({
                     label: t("actions.edit"),
                     to: "edit",
                     icon: <PencilSquare />,
+                  },
+                  {
+                    label: t("actions.duplicate"),
+                    to: "duplicate",
+                    icon: <SquareTwoStack />,
                   },
                 ],
               },

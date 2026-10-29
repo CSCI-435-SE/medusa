@@ -23,6 +23,7 @@ import {
   AdminCreateProduct,
   AdminCreateProductVariant,
   AdminCreateVariantInventoryItem,
+  AdminDuplicateProduct,
   AdminGetProductOptionsParams,
   AdminGetProductParams,
   AdminGetProductsParams,
@@ -113,6 +114,33 @@ export const adminProductRoutesMiddlewares: MiddlewareRoute[] = [
         QueryConfig.retrieveProductQueryConfig
       ),
     ],
+    policies: [
+      {
+        resource: Entities.product,
+        operation: PolicyOperation.create,
+      },
+      {
+        resource: Entities.inventory_item,
+        operation: PolicyOperation.create,
+      },
+      {
+        resource: Entities.price,
+        operation: PolicyOperation.create,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/products/:id/duplicate",
+    middlewares: [
+      validateAndTransformBody(AdminDuplicateProduct),
+      validateAndTransformQuery(
+        AdminGetProductParams,
+        QueryConfig.retrieveProductQueryConfig
+      ),
+    ],
+    // Same permissions as creating a product: the copy gets new products,
+    // variants, prices and inventory items.
     policies: [
       {
         resource: Entities.product,
