@@ -244,6 +244,13 @@ export interface BatchUpdatePromotionRulesReq {
   rules: AdminUpdatePromotionRule[]
 }
 
+export interface AdminDuplicatePromotion {
+  /**
+   * The code of the new promotion. It must not be used by another promotion.
+   */
+  code: string
+}
+
 export interface AdminImportPromotionsRequest {
   /**
    * The CSV file to import the promotions from, with the columns Code, Type,

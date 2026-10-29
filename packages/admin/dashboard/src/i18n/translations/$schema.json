@@ -9532,6 +9532,22 @@
           "required": ["add", "list"],
           "additionalProperties": false
         },
+        "duplicate": {
+          "type": "object",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "successToast": {
+              "type": "string"
+            }
+          },
+          "required": ["header", "description", "successToast"],
+          "additionalProperties": false
+        },
         "import": {
           "type": "object",
           "properties": {
@@ -9618,6 +9634,7 @@
         "createPromotionTitle",
         "type",
         "conditions",
+        "duplicate",
         "import"
       ],
       "additionalProperties": false
