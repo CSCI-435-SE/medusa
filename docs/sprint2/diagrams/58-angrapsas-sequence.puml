@@ -1,0 +1,97 @@
+@startuml
+!theme plain
+skinparam dpi 150
+skinparam defaultFontName Helvetica
+skinparam sequenceMessageAlign center
+skinparam ArrowColor #1F3864
+skinparam ParticipantBackgroundColor #1F3864
+skinparam ParticipantBorderColor #1F3864
+skinparam ParticipantFontColor #FFFFFF
+skinparam ParticipantFontStyle bold
+skinparam ParticipantStereotypeFontColor #FFFFFF
+skinparam ActorBorderColor #1F3864
+skinparam LifeLineBorderColor #9AA3B5
+skinparam SequenceLifeLineBackgroundColor #D5D9E0
+skinparam SequenceGroupBackgroundColor #F3F6FC
+skinparam SequenceGroupBorderColor #9AA3B5
+skinparam NoteBackgroundColor #FFF8E6
+skinparam NoteBorderColor #C98A2B
+skinparam NoteFontColor #3A2A00
+skinparam NoteFontSize 11
+skinparam MessageFontName Menlo
+skinparam MessageFontSize 11
+hide footbox
+
+title Issue #58, Complete a cart when an item ran out of stock: UML Sequence Diagram
+
+actor Storefront <<actor>>
+participant "POST /store/carts/:id/complete" as Route <<boundary>> #2E7D32
+participant "completeCartWorkflow" as WF <<control>>
+participant "reserveInventoryStep" as Step <<control>>
+participant "InventoryModuleService" as Inv <<entity>> #2E7D32
+
+Storefront -> Route : POST /store/carts/:id/complete
+activate Route
+
+Route -> WF : run via workflow engine\n({ input: { id }, throwOnError: false })
+activate WF
+note right of WF
+  <b><color:#B8761B>(1) Errors come back, not thrown</color></b>
+  throwOnError: false makes the engine return
+  the error, so the route decides the response.
+end note
+
+WF -> Step : reserveInventoryStep(items)
+activate Step
+Step -> Inv : createReservationItems(items)
+activate Inv
+Inv -> Inv : ensureInventoryLevels(items,\n{ validateQuantityAtLocation: true })
+
+alt available_quantity < quantity
+  Inv -[#2E7D32]-> Step : <color:#2E7D32><b>throw MedusaError(NOT_ALLOWED, "Not enough stock...",</b></color>\n<color:#2E7D32><b>INSUFFICIENT_INVENTORY)</b></color>
+  deactivate Inv
+  note right of Inv
+    <b><color:#B8761B>(2) Code added at the source</color></b>
+    Same type and message as before. Attaching the
+    existing INSUFFICIENT_INVENTORY code is what lets
+    the route tell it apart from other NOT_ALLOWED errors.
+  end note
+end
+
+Step --> WF : step fails
+deactivate Step
+WF -> WF : compensate earlier steps\n(delete order and links)
+note right of WF
+  <b><color:#B8761B>(3) Cart stays usable</color></b>
+  Compensation rolls back the order, so the
+  cart is still incomplete and can be fixed.
+end note
+WF --> Route : { errors: [{ error }] }
+deactivate WF
+
+Route -> Route : refetchCart(id)
+
+alt <color:#2E7D32><b>error.code in statusOKErrorCodes (new)</b></color>
+  Route -[#2E7D32]-> Storefront : <color:#2E7D32><b>200 { type: "cart", cart, error: { message, name, type } }</b></color>
+  note right of Route
+    <b><color:#B8761B>(4) Same shape as payment errors</color></b>
+    The storefront already handles type "cart" for
+    payment errors, so it can now show which item is
+    out of stock and let the shopper remove it.
+  end note
+else other errors (e.g. promotion limit, also NOT_ALLOWED)
+  Route --> Storefront : 400 { type, message, code }
+end
+deactivate Route
+
+legend bottom left
+  |= Notation |= Meaning |
+  | solid arrow | Synchronous call |
+  | dashed arrow | Return or thrown error |
+  | grey bar | Activation (object busy) |
+  | Navy box | Existing code, unchanged |
+  | <back:#2E7D32><color:#FFFFFF> Green box </color></back> / <color:#2E7D32><b>green text</b></color> | New or modified for #58 |
+  | <<boundary>> / <<control>> / <<entity>> | HTTP layer / workflow logic / module holding the data |
+  | <back:#FFF8E6> Amber note </back> | Design decision callout |
+endlegend
+@enduml

@@ -1,0 +1,109 @@
+@startuml
+!theme plain
+skinparam dpi 150
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam classAttributeFontName Menlo
+skinparam classAttributeFontSize 11
+skinparam classAttributeIconSize 0
+skinparam ArrowColor #1F3864
+skinparam ClassBorderColor #1F3864
+skinparam ClassBorderThickness 1.5
+skinparam ClassFontColor #FFFFFF
+skinparam ClassStereotypeFontColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam NoteBackgroundColor #FFF8E6
+skinparam NoteBorderColor #C98A2B
+skinparam NoteFontColor #3A2A00
+skinparam NoteFontSize 11
+skinparam nodesep 70
+skinparam ranksep 70
+hide empty members
+hide circle
+
+title Issue #58, Inventory errors on cart completion: UML Class Diagram
+
+class "POST /store/carts/:id/complete" as Route <<route>> #header:2E7D32;line:2E7D32 {
+  - statusOKErrors : string[]
+  - <color:#2E7D32><b>statusOKErrorCodes : string[]  (new)</b></color>
+  + POST(req, res) : Promise<void>
+  <color:#2E7D32><b>  (modified: returns the cart if the error's</b></color>
+  <color:#2E7D32><b>   type OR code is in an OK list)</b></color>
+}
+
+interface IWorkflowEngineService <<interface>> #header:1F3864 {
+  + run(workflowId, { input, throwOnError }) : { errors, result, transaction }
+}
+
+class completeCartWorkflow <<workflow>> #header:1F3864 {
+  + id = "complete-cart"
+}
+
+class reserveInventoryStep <<step>> #header:1F3864 {
+  + invoke(items) : ReservationItemDTO[]
+  + compensate(reservationIds)
+}
+
+class InventoryModuleService <<module service>> #header:2E7D32;line:2E7D32 {
+  + createReservationItems(input[]) : ReservationItemDTO[]
+  - ensureInventoryLevels(data, { validateQuantityAtLocation })
+  <color:#2E7D32><b>  (modified: stock error now passes code</b></color>
+  <color:#2E7D32><b>   INSUFFICIENT_INVENTORY)</b></color>
+}
+
+class MedusaError #header:1F3864 {
+  + type : string
+  + message : string
+  + code? : string
+  + {static} Types : MedusaErrorTypes
+  + {static} Codes : MedusaErrorCodes
+}
+
+Route ..> IWorkflowEngineService : <<use>> resolves from req.scope
+IWorkflowEngineService ..> completeCartWorkflow : runs
+completeCartWorkflow "1" o-- "1" reserveInventoryStep : contains
+reserveInventoryStep ..> InventoryModuleService : <<use>>
+InventoryModuleService ..> MedusaError : <<throws>> NOT_ALLOWED\n+ INSUFFICIENT_INVENTORY
+Route ..> MedusaError : reads type / code
+
+note top of Route
+  <b><color:#B8761B>(1) Match by code, not by type</color></b>
+  The inventory error is NOT_ALLOWED, but so is the
+  promotion limit error from the same workflow. Adding
+  NOT_ALLOWED to statusOKErrors would return a cart for
+  both, so a separate code list is used.
+end note
+
+note right of InventoryModuleService
+  <b><color:#B8761B>(2) Tag the error where it starts</color></b>
+  ensureInventoryLevels is the only place that knows
+  this is a stock problem. It reuses the existing
+  INSUFFICIENT_INVENTORY code instead of a new error
+  type, so the 400 status for other callers (like
+  admin reservations) stays the same.
+end note
+
+note right of reserveInventoryStep
+  <b><color:#B8761B>(3) Aggregation, not composition</color></b>
+  The step is shared. Order edits, claims, exchanges
+  and draft orders also use it, so it does not
+  belong to completeCartWorkflow alone.
+end note
+
+note right of IWorkflowEngineService
+  <b><color:#B8761B>(4) Dependency, not association</color></b>
+  The route resolves the engine from req.scope on
+  each request and runs with throwOnError: false,
+  so it gets errors back instead of an exception.
+end note
+
+legend bottom left
+  |= Notation |= Meaning |
+  | Navy header | Existing code, unchanged |
+  | <back:#2E7D32><color:#FFFFFF> Green header </color></back> / <color:#2E7D32><b>green text</b></color> | New or modified for #58 |
+  | dashed arrow | Dependency (uses, throws) |
+  | hollow diamond | Aggregation (part can exist without whole) |
+  | - attr / + method() | Private / public member |
+  | <back:#FFF8E6> Amber note </back> | Design decision callout |
+endlegend
+@enduml
