@@ -1,0 +1,161 @@
+@startuml issue8-sequence-diagram
+' Issue #8 / PR #79: what happens when the manager opens the full Edit Product
+' flow and then clicks Save. Mirrors handleSubmit in product-edit-full-form.tsx.
+
+title Issue #8 - Full Edit Product Flow: Open and Save
+
+skinparam shadowing false
+skinparam noteBackgroundColor #FFF3C4
+skinparam noteBorderColor #D9A400
+skinparam participant {
+  BackgroundColor #EEEEEE
+  BorderColor #777777
+  BackgroundColor<<new>> #C8E6C9
+  BorderColor<<new>> #2E7D32
+  BackgroundColor<<modified>> #FFE0B2
+  BorderColor<<modified>> #E65100
+}
+autonumber
+
+actor Manager
+participant "ProductGeneralSection" as Detail <<modified>>
+participant "ProductEditFull" as Route <<new>>
+participant "ProductEditFullForm" as Form <<new>>
+participant "utils.ts" as Utils <<new>>
+participant "sdk.admin.upload" as Upload
+participant "useBatchProductVariants" as BatchHook <<new>>
+participant "useLinkProductOptions" as LinkHook
+participant "useProductVariantsInventoryItemsBatch" as InvHook
+participant "useUpdateProduct" as UpdateHook
+database "Medusa Backend" as Backend
+
+== Part 1: Opening the flow ==
+
+Manager -> Detail : click "Edit Product"
+Detail -> Route : navigate to products/:id/edit-all
+Route -> Backend : useProduct, useStore, useRegions,\nusePricePreferences
+Backend --> Route : product, store, regions, price preferences
+note right of Route
+  The form is only rendered once ALL four queries
+  have returned, because its default values are
+  computed once on first render.
+end note
+Route -> Form : render(product, store, regions, pricePreferences)
+Form -> Utils : mapProductToFormValues(product)
+Utils --> Form : pre-filled form values
+note right of Form
+  Every field is pre-filled from the stored product.
+  Nothing is written to the server while the manager
+  moves through the tabs (Details, Organize, Variants,
+  Inventory kits). Closing the modal just discards the
+  form after the unsaved-changes prompt.
+end note
+
+== Part 2: Saving ==
+
+Manager -> Form : click Save on the last tab
+Form -> Form : handleSubmit(values)
+
+opt new image files were added
+  Form -> Upload : create({ files })
+  alt upload fails
+    Upload --> Form : error
+    Form -> Manager : error toast, stop
+    note right of Form
+      Unlike the create flow, we stop here. Carrying on
+      would silently drop the images the manager just
+      added.
+    end note
+  else upload succeeds
+    Upload --> Form : uploaded URLs
+    Form -> Form : swap temporary preview URLs\nfor uploaded URLs
+  end
+end
+
+Form -> Utils : buildProductEditRequests(values, product, media)
+Utils --> Form : ProductEditRequests
+note right of Utils
+  Diffs the form against the stored product. Only the
+  parts that changed are present, so the steps below
+  are skipped when their payload is undefined.
+end note
+
+group Requests sent in a fixed order (stop at the first failure)
+  opt variantDeletes present
+    Form -> BatchHook : mutateAsync({ delete })
+    BatchHook -> Backend : batch variants (delete)
+    Backend --> BatchHook : ok
+    note right of BatchHook
+      Deletes get their own request and run FIRST. A batch
+      runs create, update and delete in parallel, and the
+      backend refuses to unlink an option value while a
+      variant still uses it.
+    end note
+  end
+
+  opt optionsAdd present
+    Form -> LinkHook : mutateAsync(optionsAdd)
+    LinkHook -> Backend : link new options and values
+    Backend --> LinkHook : ok
+    note right of LinkHook
+      New options and values must exist before any variant
+      created or updated next refers to them.
+    end note
+  end
+
+  opt variantsBatch present
+    Form -> BatchHook : mutateAsync({ create, update })
+    BatchHook -> Backend : batch variants (create, update)
+    Backend --> BatchHook : ok
+    note right of BatchHook
+      New hook: the existing useUpdateProductVariantsBatch
+      could only update. It also invalidates the variant,
+      product and inventory caches.
+    end note
+  end
+
+  opt inventoryItems present
+    Form -> InvHook : mutateAsync(inventoryItems)
+    InvHook -> Backend : update inventory kit links
+    Backend --> InvHook : ok
+  end
+
+  opt optionsRemove present
+    Form -> LinkHook : mutateAsync(optionsRemove)
+    LinkHook -> Backend : unlink unused option values
+    Backend --> LinkHook : ok
+    note right of LinkHook
+      Option values are only unlinked once nothing uses
+      them any more, so this runs after the variants are
+      updated.
+    end note
+  end
+
+  Form -> UpdateHook : mutateAsync(requests.product)
+  UpdateHook -> Backend : update product fields
+  Backend --> UpdateHook : ok
+  note right of UpdateHook
+    The product's own fields go last.
+  end note
+end
+
+alt all requests succeeded
+  Form -> Manager : success toast, close modal\n(handleSuccess)
+else any request failed
+  Form -> Backend : invalidate product query (refetch)
+  Form -> Manager : error toast, modal stays open
+  note right of Form
+    Earlier requests may already be saved, so the product
+    is refetched to show what is really stored. The modal
+    stays open so the manager can retry.
+  end note
+end
+
+legend right
+  |= Color |= Meaning |
+  |<#EEEEEE>   | Existing code |
+  |<#FFE0B2>   | Modified by this issue |
+  |<#C8E6C9>   | New in this issue |
+endlegend
+
+@enduml
