@@ -88,6 +88,42 @@ export class Customer {
   }
 
   /**
+   * This method starts a customer export process to retrieve a CSV of exported customers.
+   * It sends a request to the Export Customers API route.
+   *
+   * You'll receive in the response the transaction ID of the workflow generating the CSV file.
+   * To check the status of the execution, send a `GET` request to
+   * `/admin/workflows-executions/export-customers/:transaction-id`.
+   *
+   * Once the execution finishes successfully, a notification is created for the export.
+   * You can retrieve the notifications using the `/admin/notification` API route to
+   * retrieve the file's download URL.
+   *
+   * @param query - Filters to specify which customers to export.
+   * @param headers - Headers to pass in the request.
+   * @returns The export's details.
+   *
+   * @example
+   * sdk.admin.customer.export()
+   * .then(({ transaction_id }) => {
+   *   console.log(transaction_id)
+   * })
+   */
+  async export(
+    query?: HttpTypes.AdminCustomerFilters,
+    headers?: ClientHeaders
+  ) {
+    return await this.client.fetch<HttpTypes.AdminExportCustomersResponse>(
+      `/admin/customers/export`,
+      {
+        method: "POST",
+        headers,
+        query,
+      }
+    )
+  }
+
+  /**
    * This method updates a customer's details. It sends a request to the
    * [Update Customer](https://docs.medusajs.com/api/admin#customers_postcustomersid) API route.
    *

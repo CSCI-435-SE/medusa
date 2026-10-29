@@ -1098,6 +1098,14 @@
       "hint": "Create a new customer and manage their details.",
       "successToast": "Customer {{email}} was successfully created."
     },
+    "export": {
+      "header": "Export Customer List",
+      "description": "Export the customer list to a CSV file.",
+      "success": {
+        "title": "Export started",
+        "description": "You will be notified when the export is ready."
+      }
+    },
     "groups": {
       "label": "Customer groups",
       "remove": "Are you sure you want to remove the customer from \"{{name}}\" customer group?",

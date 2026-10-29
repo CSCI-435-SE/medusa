@@ -806,6 +806,18 @@ export function getRouteMap({
                         },
                       ],
                     },
+                    {
+                      path: "export",
+                      element: <RoutePermissionGuard />,
+                      handle: { permissions: "customer:read" },
+                      children: [
+                        {
+                          path: "",
+                          lazy: () =>
+                            import("../../routes/customers/customer-export"),
+                        },
+                      ],
+                    },
                   ],
                 },
                 {

@@ -78,6 +78,22 @@ export const adminCustomerRoutesMiddlewares: MiddlewareRoute[] = [
     ],
   },
   {
+    method: ["POST"],
+    matcher: "/admin/customers/export",
+    middlewares: [
+      validateAndTransformQuery(
+        AdminCustomersParams,
+        QueryConfig.listTransformQueryConfig
+      ),
+    ],
+    policies: [
+      {
+        resource: Entities.customer,
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  {
     method: ["GET"],
     matcher: "/admin/customers/:id",
     middlewares: [

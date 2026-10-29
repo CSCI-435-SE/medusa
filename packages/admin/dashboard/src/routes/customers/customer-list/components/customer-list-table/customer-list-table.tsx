@@ -4,7 +4,7 @@ import { keepPreviousData } from "@tanstack/react-query"
 import { createColumnHelper } from "@tanstack/react-table"
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 
 import { HttpTypes } from "@medusajs/types"
 import {
@@ -31,6 +31,7 @@ const PAGE_SIZE = 20
 
 export const CustomerListTable = () => {
   const { t } = useTranslation()
+  const location = useLocation()
 
   const { searchParams, raw } = useCustomerTableQuery({ pageSize: PAGE_SIZE })
   const { customers, count, isLoading, isError, error } = useCustomers(
@@ -65,8 +66,15 @@ export const CustomerListTable = () => {
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
         <Heading>{t("customers.domain")}</Heading>
-        <PermissionGuard resource="customer" operation="create">
-          <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2">
+          <PermissionGuard resource="customer" operation="read">
+            <Link to={`/customers/export${location.search}`}>
+              <Button size="small" variant="secondary">
+                {t("actions.export")}
+              </Button>
+            </Link>
+          </PermissionGuard>
+          <PermissionGuard resource="customer" operation="create">
             <Link to="/customers/import">
               <Button size="small" variant="secondary">
                 {t("actions.import")}
@@ -77,8 +85,8 @@ export const CustomerListTable = () => {
                 {t("actions.create")}
               </Button>
             </Link>
-          </div>
-        </PermissionGuard>
+          </PermissionGuard>
+        </div>
       </div>
       <_DataTable
         table={table}

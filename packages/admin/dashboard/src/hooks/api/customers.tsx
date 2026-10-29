@@ -277,3 +277,20 @@ export const useCustomerAddress = (
 
   return { ...data, ...rest }
 }
+
+export const useExportCustomers = (
+  query?: HttpTypes.AdminCustomerFilters,
+  options?: UseMutationOptions<
+    HttpTypes.AdminExportCustomersResponse,
+    FetchError,
+    HttpTypes.AdminCustomerFilters
+  >
+) => {
+  return useMutation({
+    mutationFn: () => sdk.admin.customer.export(query),
+    onSuccess: (data, variables, context) => {
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
