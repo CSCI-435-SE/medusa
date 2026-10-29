@@ -185,7 +185,8 @@ export default class InventoryModuleService
         if (MathBN.lt(level.available_quantity, item.quantity!)) {
           throw new MedusaError(
             MedusaError.Types.NOT_ALLOWED,
-            `Not enough stock available for item ${item.inventory_item_id} at location ${item.location_id}`
+            `Not enough stock available for item ${item.inventory_item_id} at location ${item.location_id}`,
+            MedusaError.Codes.INSUFFICIENT_INVENTORY
           )
         }
       }
