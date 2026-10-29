@@ -1,0 +1,63 @@
+---
+title: "Issue #59 - DELETE /admin/products/:id/variants/:variant_id (UML Sequence Diagram)"
+---
+sequenceDiagram
+  autonumber
+  actor Admin as Admin user<br/>«actor»
+  participant Router as Router + middlewares<br/>«framework»
+  participant Route as DELETE handler<br/>«route, MODIFIED»
+  participant Query as refetchEntity / Query<br/>«framework»
+  participant PM as ProductModuleService<br/>«module»
+  participant WF as deleteProductVariantsWorkflow<br/>«workflow»
+  participant EH as errorHandler<br/>«middleware»
+
+  Note over Admin,Router: Legend: amber block = new or modified in issue 59.<br/>Unshaded = existing code.
+
+  Admin->>Router: DELETE /admin/products/prod_A/variants/variant_B
+  activate Router
+  Router->>Router: authenticate admin, validate ?fields, RBAC policy
+  Note right of Router: Existing. 401 and 403 are returned here,<br/>before the handler runs (not shown).
+  Router->>Route: DELETE(req, res)
+  deactivate Router
+  activate Route
+
+  rect rgb(253, 243, 220)
+    Note over Route,PM: (1) NEW guard. The route is the only layer with both URL IDs,<br/>so it checks ownership before anything is deleted.
+    Route->>Query: refetchEntity("variant", { id: variant_B, product_id: prod_A }, ["id"])
+    activate Query
+    Query->>PM: list variants matching id AND product_id
+    activate PM
+    PM-->>Query: [] or [variant]
+    deactivate PM
+    Query-->>Route: existingVariant (undefined if no match)
+    deactivate Query
+  end
+
+  alt variant does not belong to prod_A, does not exist, or was already deleted
+    rect rgb(253, 243, 220)
+      Route--)EH: throw MedusaError(NOT_FOUND, "Variant with id ... not found for product ...")
+      deactivate Route
+      activate EH
+      Note right of EH: (2) NEW path. The handler never sets a status.<br/>The error handler maps NOT_FOUND to 404.<br/>The workflow never runs, so nothing is deleted.
+      EH-->>Admin: 404 { type: "not_found", message }
+      deactivate EH
+    end
+  else variant belongs to prod_A
+    activate Route
+    Route->>WF: run({ input: { ids: [variant_B] } })
+    activate WF
+    Note right of WF: (3) Existing and unchanged. Removes links and inventory,<br/>soft-deletes the variant, emits the deleted event.<br/>Input is ids only, which is why the guard lives in the route.
+    WF->>PM: softDeleteProductVariants([variant_B])
+    activate PM
+    PM-->>WF: done
+    deactivate PM
+    WF-->>Route: result
+    deactivate WF
+    Route->>Query: refetchEntity("product", prod_A, req.queryConfig.fields)
+    activate Query
+    Query-->>Route: product
+    deactivate Query
+    Note over Route,Query: (4) Response is built from a fresh read of the product,<br/>so parent now always matches the variant's real owner.
+    Route-->>Admin: 200 { id: variant_B, object: "variant", deleted: true, parent }
+    deactivate Route
+  end
