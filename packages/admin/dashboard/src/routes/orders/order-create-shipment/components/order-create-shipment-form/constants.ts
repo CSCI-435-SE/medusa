@@ -1,5 +1,13 @@
 import { z } from "zod"
 
+export const TRACKING_STATUSES = [
+  "pending",
+  "in_transit",
+  "delivered",
+  "returned",
+  "failed",
+] as const
+
 export const CreateShipmentSchema = z.object({
   labels: z.array(
     z.object({
@@ -9,5 +17,7 @@ export const CreateShipmentSchema = z.object({
       label_url: z.string().optional(),
     })
   ),
+  carrier_name: z.string().optional(),
+  tracking_status: z.enum(TRACKING_STATUSES).optional(),
   send_notification: z.boolean().optional(),
 })

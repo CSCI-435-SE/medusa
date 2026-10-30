@@ -30,6 +30,20 @@ import { formatProvider } from "../../../../../lib/format-provider"
 import { getLocaleAmount } from "../../../../../lib/money-amount-helpers"
 import { FulfillmentSetType } from "../../../../locations/common/constants"
 import { ExtendedOrderFulfillment, ExtendedOrder } from "../../constants"
+import { TRACKING_STATUSES } from "../../../order-create-shipment/components/order-create-shipment-form/constants"
+
+type TrackingStatus = (typeof TRACKING_STATUSES)[number]
+
+const TRACKING_STATUS_COLORS: Record<
+  TrackingStatus,
+  "grey" | "blue" | "green" | "orange" | "red"
+> = {
+  pending: "grey",
+  in_transit: "blue",
+  delivered: "green",
+  returned: "orange",
+  failed: "red",
+}
 
 type OrderFulfillmentSectionProps = {
   order: ExtendedOrder
@@ -216,6 +230,14 @@ const Fulfillment = ({
   const isPickUpFulfillment =
     fulfillment.shipping_option?.service_zone?.fulfillment_set?.type ===
     FulfillmentSetType.Pickup
+
+  const carrierName =
+    typeof fulfillment.metadata?.carrier_name === "string"
+      ? fulfillment.metadata.carrier_name
+      : undefined
+  const trackingStatus = TRACKING_STATUSES.find(
+    (status) => status === fulfillment.metadata?.tracking_status
+  )
 
   const { stock_location, isError, error } = useStockLocation(
     fulfillment.location_id!,
@@ -418,6 +440,14 @@ const Fulfillment = ({
           {formatProvider(fulfillment.provider_id)}
         </Text>
       </div>
+      <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
+        <Text size="small" leading="compact" weight="plus">
+          {t("orders.fulfillment.carrierLabel")}
+        </Text>
+        <Text size="small" leading="compact">
+          {carrierName || "-"}
+        </Text>
+      </div>
       <div className="text-ui-fg-subtle grid grid-cols-2 items-start px-6 py-4">
         <Text size="small" leading="compact" weight="plus">
           {t("orders.fulfillment.trackingLabel")}
@@ -470,6 +500,25 @@ const Fulfillment = ({
                 )
               })}
             </ul>
+          ) : (
+            <Text size="small" leading="compact">
+              -
+            </Text>
+          )}
+        </div>
+      </div>
+      <div className="text-ui-fg-subtle grid grid-cols-2 items-center px-6 py-4">
+        <Text size="small" leading="compact" weight="plus">
+          {t("orders.fulfillment.trackingStatusLabel")}
+        </Text>
+        <div>
+          {trackingStatus ? (
+            <StatusBadge
+              color={TRACKING_STATUS_COLORS[trackingStatus]}
+              className="text-nowrap"
+            >
+              {t(`orders.shipment.trackingStatuses.${trackingStatus}`)}
+            </StatusBadge>
           ) : (
             <Text size="small" leading="compact">
               -

@@ -60,6 +60,7 @@ const DEFAULT_RELATIONS = [
   "*credit_lines",
   "*fulfillments",
   "+fulfillments.shipping_option.service_zone.fulfillment_set.type",
+  "+fulfillments.metadata",
   "*fulfillments.items",
   "*fulfillments.labels",
   "*fulfillments.labels",
@@ -78,6 +79,7 @@ export const DEFAULT_FIELDS = `${DEFAULT_PROPERTIES.join(
 export type ExtendedOrderFulfillment = AdminOrderFulfillment & {
   items: AdminFulfillmentItem[]
   labels: AdminFulfillmentLabel[]
+  metadata?: Record<string, unknown> | null
   shipping_option?: {
     service_zone?: {
       fulfillment_set?: {

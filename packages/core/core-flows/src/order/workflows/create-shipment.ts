@@ -226,11 +226,20 @@ export const createOrderShipmentWorkflow = createWorkflow(
 
     createShipmentValidateOrder({ order, input })
 
-    const fulfillmentData = transform({ input }, ({ input }) => {
+    const fulfillmentData = transform({ input, order }, ({ input, order }) => {
+      // Updating a fulfillment replaces its metadata, so merge the shipment's
+      // metadata into what the fulfillment already has.
+      const existing = order.fulfillments?.find(
+        (f) => f?.id === input.fulfillment_id
+      )
+
       return {
         id: input.fulfillment_id,
         labels: input.labels ?? [],
         marked_shipped_by: input.created_by,
+        ...(input.metadata && {
+          metadata: { ...existing?.metadata, ...input.metadata },
+        }),
       }
     })
 

@@ -1,3 +1,4 @@
+import { MetadataType } from "../../common"
 import { CreateFulfillmentLabelWorkflowDTO } from "./create-fulfillment"
 
 /**
@@ -18,4 +19,9 @@ export interface CreateShipmentWorkflowInput {
    * The id of the user that marked fulfillment as shipped
    */
   marked_shipped_by?: string | null
+
+  /**
+   * Custom key-value pairs to merge into the fulfillment's metadata.
+   */
+  metadata?: MetadataType
 }
