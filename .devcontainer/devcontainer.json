@@ -7,7 +7,15 @@
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "forwardPorts": [9000, 8000, 5173, 6006],
-  "postCreateCommand": "git config --global --add safe.directory /workspaces/medusa && sudo chown node:node node_modules /home/node/.claude && sudo corepack enable && npm install -g @anthropic-ai/claude-code && yarn install && yarn build",
+  // Only fast, quiet steps run here. The old command also ran `yarn install`
+  // and a full `yarn build` of the whole monorepo, which is slow and prints
+  // almost nothing, so a rebuild looked like it was hanging.
+  // - chown -R packages: earlier builds left root-owned dist folders that the
+  //   non-root "node" user cannot write to, which makes `yarn build` fail.
+  // - the Claude CLI install is kept since it is quick.
+  // After the container opens, run `yarn install && yarn build` yourself in
+  // the terminal so you can watch its progress.
+  "postCreateCommand": "git config --global --add safe.directory /workspaces/medusa && sudo chown node:node node_modules /home/node/.claude && sudo chown -R node:node packages && sudo corepack enable && npm install -g @anthropic-ai/claude-code",
   "remoteEnv": {
     "DB_HOST": "localhost",
     "DB_PORT": "5433",
