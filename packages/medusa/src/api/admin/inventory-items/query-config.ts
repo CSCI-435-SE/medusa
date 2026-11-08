@@ -23,6 +23,7 @@ export const defaultAdminInventoryItemFields = [
   "title",
   "description",
   "thumbnail",
+  "low_stock_threshold",
   "origin_country",
   "hs_code",
   "requires_shipping",

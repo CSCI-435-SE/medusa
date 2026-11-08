@@ -56,6 +56,11 @@ export interface AdminInventoryItem {
    */
   thumbnail?: string | null
   /**
+   * The available quantity at or below which the inventory item
+   * is considered low on stock.
+   */
+  low_stock_threshold: number
+  /**
    * Key-value pairs of custom data.
    */
   metadata?: Record<string, unknown> | null

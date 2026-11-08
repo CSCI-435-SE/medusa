@@ -70,4 +70,9 @@ export interface CreateInventoryItemInput {
    * Whether the inventory item requires shipping.
    */
   requires_shipping?: boolean
+  /**
+   * The available quantity at or below which the inventory item
+   * is considered low on stock. Defaults to `10`.
+   */
+  low_stock_threshold?: number
 }

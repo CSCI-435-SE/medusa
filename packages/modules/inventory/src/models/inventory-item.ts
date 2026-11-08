@@ -18,6 +18,7 @@ const InventoryItem = model
     description: model.text().searchable().nullable(),
     title: model.text().searchable().nullable(),
     thumbnail: model.text().nullable(),
+    low_stock_threshold: model.number().default(10),
     metadata: model.json().nullable(),
     location_levels: model.hasMany(() => InventoryLevel, {
       mappedBy: "inventory_item",

@@ -981,6 +981,106 @@ medusaIntegrationTestRunner({
         })
       })
 
+      describe("low_stock_threshold", () => {
+        it("should default to 10 when no threshold is given", async () => {
+          const created = await api.post(
+            `/admin/inventory-items`,
+            { sku: "threshold-default" },
+            adminHeaders
+          )
+          const existing = await api.get(
+            `/admin/inventory-items/${inventoryItem1.id}`,
+            adminHeaders
+          )
+
+          expect(created.data.inventory_item.low_stock_threshold).toEqual(10)
+          expect(existing.data.inventory_item.low_stock_threshold).toEqual(10)
+        })
+
+        it("should create an inventory item with a threshold of 0", async () => {
+          const response = await api.post(
+            `/admin/inventory-items`,
+            { sku: "threshold-zero", low_stock_threshold: 0 },
+            adminHeaders
+          )
+
+          expect(response.data.inventory_item.low_stock_threshold).toEqual(0)
+        })
+
+        it("should persist an updated threshold and return it when listing", async () => {
+          await api.post(
+            `/admin/inventory-items/${inventoryItem1.id}`,
+            { low_stock_threshold: 25 },
+            adminHeaders
+          )
+
+          const retrieved = await api.get(
+            `/admin/inventory-items/${inventoryItem1.id}`,
+            adminHeaders
+          )
+          const listed = await api.get(
+            `/admin/inventory-items?id=${inventoryItem1.id}`,
+            adminHeaders
+          )
+
+          expect(retrieved.data.inventory_item.low_stock_threshold).toEqual(25)
+          expect(listed.data.inventory_items[0].low_stock_threshold).toEqual(25)
+        })
+
+        it("should keep the threshold when other fields are updated", async () => {
+          await api.post(
+            `/admin/inventory-items/${inventoryItem1.id}`,
+            { low_stock_threshold: 3 },
+            adminHeaders
+          )
+
+          const response = await api.post(
+            `/admin/inventory-items/${inventoryItem1.id}`,
+            { title: "renamed" },
+            adminHeaders
+          )
+
+          expect(response.data.inventory_item.low_stock_threshold).toEqual(3)
+        })
+
+        it.each([
+          ["a negative", -1],
+          ["a decimal", 1.5],
+          ["a too large", 2147483648],
+          ["a null", null],
+          ["a string", "5"],
+        ])(
+          "should reject %s threshold on create and update",
+          async (_, value) => {
+            const createError = await api
+              .post(
+                `/admin/inventory-items`,
+                { sku: "threshold-invalid", low_stock_threshold: value },
+                adminHeaders
+              )
+              .catch((e) => e)
+            const updateError = await api
+              .post(
+                `/admin/inventory-items/${inventoryItem1.id}`,
+                { low_stock_threshold: value },
+                adminHeaders
+              )
+              .catch((e) => e)
+
+            expect(createError.response.status).toEqual(400)
+            expect(updateError.response.status).toEqual(400)
+
+            const unchanged = await api.get(
+              `/admin/inventory-items/${inventoryItem1.id}`,
+              adminHeaders
+            )
+            expect(unchanged.data.inventory_item.low_stock_threshold).toEqual(
+              10
+            )
+          }
+        )
+      })
+
       describe("DELETE /admin/inventory-items/:id", () => {
         it("should throw if inventory item with reservations is being removed", async () => {
           await api.post(

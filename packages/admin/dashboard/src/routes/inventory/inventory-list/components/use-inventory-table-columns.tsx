@@ -1,6 +1,6 @@
 import { AdminInventoryItem } from "@medusajs/types"
 
-import { Checkbox } from "@medusajs/ui"
+import { Checkbox, StatusBadge } from "@medusajs/ui"
 import { createColumnHelper } from "@tanstack/react-table"
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
@@ -8,6 +8,26 @@ import { PlaceholderCell } from "../../../../components/table/table-cells/common
 import { InventoryActions } from "./inventory-actions"
 
 const columnHelper = createColumnHelper<AdminInventoryItem>()
+
+export const getStockStatus = (
+  item: Pick<
+    AdminInventoryItem,
+    "stocked_quantity" | "reserved_quantity" | "low_stock_threshold"
+  >
+): "out_of_stock" | "low_stock" | null => {
+  // Quantities are null when the item has no location levels
+  const available = (item.stocked_quantity ?? 0) - (item.reserved_quantity ?? 0)
+
+  if (available <= 0) {
+    return "out_of_stock"
+  }
+
+  if (available <= item.low_stock_threshold) {
+    return "low_stock"
+  }
+
+  return null
+}
 
 export const useInventoryTableColumns = () => {
   const { t } = useTranslation()
@@ -92,25 +112,30 @@ export const useInventoryTableColumns = () => {
       }),
       columnHelper.accessor("stocked_quantity", {
         header: t("fields.inStock"),
-        cell: ({ getValue }) => {
+        cell: ({ getValue, row }) => {
           const quantity = getValue()
 
           if (Number.isNaN(quantity)) {
             return <PlaceholderCell />
           }
 
-              const isLowStock = quantity !== null && quantity < 10
+          const status = getStockStatus(row.original)
 
-              return (
-                <div className="flex size-full items-center overflow-hidden gap-x-2">
-                  <span className="truncate">{quantity}</span>
-                  {isLowStock && (
-                    <span className="text-ui-fg-error text-xs font-medium">
-                      Low stock
-                    </span>
-                  )}
-                </div>
-              )
+          return (
+            <div className="flex size-full items-center gap-x-2 overflow-hidden">
+              <span className="truncate">{quantity}</span>
+              {status === "out_of_stock" && (
+                <StatusBadge color="red">
+                  {t("inventory.outOfStock")}
+                </StatusBadge>
+              )}
+              {status === "low_stock" && (
+                <StatusBadge color="orange">
+                  {t("inventory.lowStock")}
+                </StatusBadge>
+              )}
+            </div>
+          )
         },
       }),
       columnHelper.display({

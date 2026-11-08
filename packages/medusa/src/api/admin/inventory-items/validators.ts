@@ -109,6 +109,9 @@ export const AdminUpdateInventoryLocationLevel = z
   })
   .strict()
 
+// max is the Postgres integer limit, so larger values fail here instead of in the DB
+const LowStockThreshold = z.number().int().min(0).max(2147483647)
+
 export type AdminCreateInventoryItemType = z.infer<
   typeof AdminCreateInventoryItem
 >
@@ -127,6 +130,7 @@ export const AdminCreateInventoryItem = z
     description: z.string().nullish(),
     requires_shipping: z.boolean().optional(),
     thumbnail: z.string().nullish(),
+    low_stock_threshold: LowStockThreshold.optional(),
     metadata: z.record(z.string(), z.unknown()).nullish(),
     location_levels: z.array(AdminCreateInventoryLocationLevel).optional(),
   })
@@ -150,6 +154,7 @@ export const AdminUpdateInventoryItem = z
     description: z.string().nullish(),
     requires_shipping: z.boolean().optional(),
     thumbnail: z.string().nullish(),
+    low_stock_threshold: LowStockThreshold.optional(),
     metadata: z.record(z.string(), z.unknown()).nullish(),
   })
   .strict()
