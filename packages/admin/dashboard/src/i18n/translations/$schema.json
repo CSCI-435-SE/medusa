@@ -3920,6 +3920,18 @@
         "levelDeleted": {
           "type": "string"
         },
+        "lowStock": {
+          "type": "string"
+        },
+        "outOfStock": {
+          "type": "string"
+        },
+        "lowStockThreshold": {
+          "type": "string"
+        },
+        "lowStockThresholdHint": {
+          "type": "string"
+        },
         "create": {
           "type": "object",
           "properties": {
@@ -4214,6 +4226,10 @@
         "editItemDetails",
         "quantityAcrossLocations",
         "levelDeleted",
+        "lowStock",
+        "outOfStock",
+        "lowStockThreshold",
+        "lowStockThresholdHint",
         "create",
         "reservation",
         "adjustInventory",

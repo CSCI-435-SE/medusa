@@ -75,6 +75,12 @@ export interface InventoryItemDTO {
   thumbnail?: string | null
 
   /**
+   * The available quantity at or below which the inventory item
+   * is considered low on stock. Defaults to `10`.
+   */
+  low_stock_threshold: number
+
+  /**
    * Holds custom data in key-value pairs.
    */
   metadata?: Record<string, unknown> | null

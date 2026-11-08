@@ -998,6 +998,10 @@
     "editItemDetails": "Edit item details",
     "quantityAcrossLocations": "{{quantity}} across {{locations}} locations",
     "levelDeleted": "Inventory level deleted successfully.",
+    "lowStock": "Low stock",
+    "outOfStock": "Out of stock",
+    "lowStockThreshold": "Low stock threshold",
+    "lowStockThresholdHint": "Show a low stock warning when the available quantity is at or below this number. Set to 0 to turn the warning off.",
     "create": {
       "title": "Create Inventory Item",
       "details": "Details",

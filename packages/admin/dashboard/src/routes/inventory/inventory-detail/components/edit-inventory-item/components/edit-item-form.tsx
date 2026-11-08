@@ -7,24 +7,20 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { AdminInventoryItem } from "@medusajs/types"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { z } from "zod"
 import { Form } from "../../../../../../components/common/form"
 import { KeyboundForm } from "../../../../../../components/utilities/keybound-form"
 import { useUpdateInventoryItem } from "../../../../../../hooks/api/inventory"
+import { EditInventoryItemSchema } from "../schema"
 
 type EditInventoryItemFormProps = {
   item: AdminInventoryItem
 }
 
-const EditInventoryItemSchema = z.object({
-  title: z.string().optional(),
-  sku: z.string().min(1),
-})
-
 const getDefaultValues = (item: AdminInventoryItem) => {
   return {
     title: item.title ?? undefined,
     sku: item.sku ?? undefined,
+    low_stock_threshold: item.low_stock_threshold,
   }
 }
 
@@ -80,6 +76,22 @@ export const EditInventoryItemForm = ({ item }: EditInventoryItemFormProps) => {
                   <Form.Label>{t("fields.sku")}</Form.Label>
                   <Form.Control>
                     <Input {...field} />
+                  </Form.Control>
+                  <Form.ErrorMessage />
+                </Form.Item>
+              )
+            }}
+          />
+          <Form.Field
+            control={form.control}
+            name="low_stock_threshold"
+            render={({ field }) => {
+              return (
+                <Form.Item>
+                  <Form.Label>{t("inventory.lowStockThreshold")}</Form.Label>
+                  <Form.Hint>{t("inventory.lowStockThresholdHint")}</Form.Hint>
+                  <Form.Control>
+                    <Input type="number" min={0} step={1} {...field} />
                   </Form.Control>
                   <Form.ErrorMessage />
                 </Form.Item>
