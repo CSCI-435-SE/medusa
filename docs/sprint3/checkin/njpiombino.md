@@ -1,0 +1,8 @@
+What have you implemented so far, and what remains?  
+I implemented issue \#61, “Add Configurable Low-Stock Thresholds and Warnings”. This allows admins to alter the low-stock threshold for each item. If the item’s stock is at or below the threshold, it will be flagged in the frontend. This builds off of a previous issue of adding a low stock warning. I have started work on my second issue, which is a follow up to \#61, which adds a new page for admins to see their items with low stock. I additionally need to do one final issue, which will likely be a part of one of the larger issues assigned to the group.
+
+What is one thing you learned about testing in your project?  
+I learned how to use integration, unit, and manual all to test one issue. I find it interesting how spec files allow you to test your code in the same directory as the implementation, which differs from what I am used to. In my experience, usually tests are kept in a separate folder, similar to how the integration tests are in our repo. However, I see the benefits of being very close to the functionality that is being tested.
+
+What is one risk to finishing your work by Nov 19, and what will you do about it?  
+Our team has not divided up the larger issues because they were assigned to us a few days after the sprint started. This has caused us an issue, because now we need to take time to break up and assign these issues, which were not in our original scope or plan. We now risk wasting time due to needing coordination that was not originally planned. I had already picked issues to work on, so I may need to rearrange my plan to ensure one of these issues are completed.
