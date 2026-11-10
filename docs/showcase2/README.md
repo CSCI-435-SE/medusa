@@ -4,7 +4,7 @@
   ([github.com/DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)),
   MIT license
 - **Used with:** Claude Code (also works with Codex, Copilot CLI, Gemini CLI)
-- **Tutorial video:** [Watch on YouTube](TODO: add final video link)
+- **Tutorial video:** https://youtu.be/-MtujRsHjWQ
 
 ## The problem
 
@@ -29,7 +29,10 @@ code — it tells the AI when not to write code at all.
 - Safety kept: validation, error handling, and security are never
   simplified away
 
-<!-- TODO: add any results specific to our Medusa project if available -->
+**On our project:** Running `/ponytail-review` on a Medusa PR diff 
+identified two over-engineering issues with specific fixes — a duplicated 
+validation constant and a missing test for a schema rule — and flagged 
+"-2 lines possible."
 
 ## Setup
 
