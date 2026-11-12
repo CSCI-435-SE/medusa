@@ -1,6 +1,7 @@
 import {
   createStep,
   createWorkflow,
+  parallelize,
   StepResponse,
   WorkflowData,
   WorkflowResponse,
@@ -394,17 +395,17 @@ medusaIntegrationTestRunner({
           TransactionState.INVOKING
         )
 
-        // The steps that had already finished were compensated.
+        // The steps that had already finished were compensated, and the
+        // execution settled in `reverted` (failing the waiting step is what
+        // lets the engine start compensating).
         expect(compensateSpy).toHaveBeenCalledWith("compensate-me")
+        expect(response.data.workflow_execution.state).toBe(
+          TransactionState.REVERTED
+        )
 
         // The stored execution reflects the same new state as the response.
         const stored = await getExecution(workflowId, transactionId)
-        expect(stored.state).toBe(response.data.workflow_execution.state)
-        expect([
-          TransactionState.REVERTED,
-          TransactionState.WAITING_TO_COMPENSATE,
-          TransactionState.COMPENSATING,
-        ]).toContain(stored.state)
+        expect(stored.state).toBe(TransactionState.REVERTED)
       })
 
       // AC2: an execution that is DONE is rejected and left untouched.
@@ -535,6 +536,41 @@ medusaIntegrationTestRunner({
         // The unauthenticated call must not have cancelled anything.
         expect((await getExecution(workflowId, transactionId)).state).toBe(
           TransactionState.INVOKING
+        )
+
+        // Clean up with an authenticated cancel. The test runner waits for
+        // every execution to finish before the next test, so leaving this one
+        // parked would stall the suite until it times out.
+        await cancel(workflowId, transactionId)
+      })
+
+      // Several async steps waiting at once: all of them must be failed so the
+      // execution can finish reverting.
+      it("should cancel an execution waiting on several async steps", async () => {
+        const stepNames = [
+          "cancel-parallel-a-" + unique(),
+          "cancel-parallel-b-" + unique(),
+        ]
+        const stepA = createStep({ name: stepNames[0], async: true }, () => {})
+        const stepB = createStep({ name: stepNames[1], async: true }, () => {})
+
+        const workflowId = "workflow-cancel-parallel-" + unique()
+        createWorkflow({ name: workflowId, retentionTime: 60 }, () => {
+          parallelize(stepA(), stepB())
+          return new WorkflowResponse(void 0)
+        })
+        const transactionId = "trx_cancel_parallel_" + unique()
+
+        await workflowOrcModule.run(workflowId, { transactionId })
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.INVOKING
+        )
+
+        const response = await cancel(workflowId, transactionId)
+
+        expect(response.status).toBe(200)
+        expect(response.data.workflow_execution.state).toBe(
+          TransactionState.REVERTED
         )
       })
     })

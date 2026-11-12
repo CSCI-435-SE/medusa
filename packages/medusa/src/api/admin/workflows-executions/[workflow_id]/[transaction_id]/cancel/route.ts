@@ -7,7 +7,9 @@ import {
   ContainerRegistrationKeys,
   MedusaError,
   Modules,
+  TransactionHandlerType,
   TransactionState,
+  TransactionStepStatus,
   remoteQueryObjectFromString,
 } from "@medusajs/framework/utils"
 import { AdminGetWorkflowExecutionDetailsParamsType } from "../../../validators"
@@ -63,14 +65,56 @@ export const POST = async (
     )
   }
 
-  // 3. Hand off to the engine, which marks the transaction for compensation and
-  //    rolls back the steps that already finished.
+  // 3. Work out which steps are parked waiting for an async response. These
+  //    are the steps that make an execution look "stuck", and the engine's
+  //    `cancel` alone does not unstick them: it marks the run for rollback but
+  //    only starts compensating once every waiting step has resolved, which
+  //    for a genuinely stuck step is never.
+  const waitingSteps = Object.values(execution.execution?.steps ?? {}).filter(
+    (step: any) =>
+      step.id !== "_root" &&
+      step.invoke?.status === TransactionStepStatus.WAITING
+  ) as any[]
+
   try {
-    await workflowEngine.cancel(workflow_id, {
-      transactionId: transaction_id,
-      container: req.scope,
-      context: { requestId: req.requestId },
-    })
+    if (waitingSteps.length) {
+      // Fail each waiting step permanently. A step failure makes the engine
+      // compensate the steps that already finished, so the run ends up
+      // reverted, which is exactly what cancelling should do.
+      //
+      // `forcePermanentFailure` skips the step's retry settings, otherwise a
+      // step configured with retries would just be retried and stay stuck.
+      for (const step of waitingSteps) {
+        await workflowEngine.setStepFailure({
+          idempotencyKey: {
+            action: TransactionHandlerType.INVOKE,
+            transactionId: transaction_id,
+            stepId: step.definition.action,
+            workflowId: workflow_id,
+          },
+          stepResponse: {
+            name: "WorkflowExecutionCancelled",
+            message: "The workflow execution was cancelled by an admin",
+          },
+          options: {
+            container: req.scope,
+            context: { requestId: req.requestId },
+            throwOnError: false,
+            logOnError: true,
+            forcePermanentFailure: true,
+          },
+        })
+      }
+    } else {
+      // Nothing is waiting on an async response (a step is running in-process),
+      // so there is nothing to fail. Ask the engine to cancel instead: it
+      // flags the run and rolls back once the running step settles.
+      await workflowEngine.cancel(workflow_id, {
+        transactionId: transaction_id,
+        container: req.scope,
+        context: { requestId: req.requestId },
+      })
+    }
   } catch (e) {
     // The execution may have finished or started compensating between our
     // check above and the engine call. Report that as a client error rather
