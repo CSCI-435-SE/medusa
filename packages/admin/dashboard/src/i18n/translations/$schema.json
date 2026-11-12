@@ -13157,6 +13157,34 @@
         "stepsCompletedLabel_other": {
           "type": "string"
         },
+        "cancel": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "warning": {
+              "type": "string"
+            },
+            "confirmText": {
+              "type": "string"
+            },
+            "keepRunningText": {
+              "type": "string"
+            },
+            "successToast": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "label",
+            "warning",
+            "confirmText",
+            "keepRunningText",
+            "successToast"
+          ],
+          "additionalProperties": false
+        },
         "list": {
           "type": "object",
           "properties": {
@@ -13301,6 +13329,7 @@
         "transactionIdLabel",
         "workflowIdLabel",
         "progressLabel",
+        "cancel",
         "list",
         "history",
         "state",

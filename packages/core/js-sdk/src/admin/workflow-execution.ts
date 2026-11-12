@@ -97,4 +97,37 @@ export class WorkflowExecution {
       }
     )
   }
+
+  /**
+   * This method cancels a running workflow execution. It sends a request to the
+   * Cancel Workflow Execution API route. The steps that already finished are
+   * compensated (rolled back).
+   *
+   * Only executions that are currently running can be cancelled. Cancelling an
+   * execution that has already finished, failed or been reverted throws an error.
+   *
+   * @param workflowId - The ID of the workflow the execution belongs to.
+   * @param transactionId - The transaction ID of the execution to cancel.
+   * @param headers - Headers to pass in the request.
+   * @returns The updated workflow execution.
+   *
+   * @example
+   * sdk.admin.workflowExecution.cancel("create-order", "trx_123")
+   * .then(({ workflow_execution }) => {
+   *   console.log(workflow_execution)
+   * })
+   */
+  async cancel(
+    workflowId: string,
+    transactionId: string,
+    headers?: ClientHeaders
+  ) {
+    return await this.client.fetch<HttpTypes.AdminWorkflowExecutionResponse>(
+      `/admin/workflows-executions/${workflowId}/${transactionId}/cancel`,
+      {
+        method: "POST",
+        headers,
+      }
+    )
+  }
 }
