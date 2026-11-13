@@ -1,6 +1,7 @@
 import {
   createStep,
   createWorkflow,
+  parallelize,
   StepResponse,
   WorkflowData,
   WorkflowResponse,
@@ -317,6 +318,259 @@ medusaIntegrationTestRunner({
           expect.objectContaining({
             state: TransactionState.DONE,
           })
+        )
+      })
+    })
+
+    describe("POST /admin/workflows-executions/[workflow_id]/[transaction_id]/cancel", function () {
+      const unique = () => Math.random().toString(36).substring(2, 15)
+
+      const getExecution = async (workflowId: string, transactionId: string) =>
+        (
+          await api.get(
+            `/admin/workflows-executions/${workflowId}/${transactionId}`,
+            adminHeaders
+          )
+        ).data.workflow_execution
+
+      const cancel = (
+        workflowId: string,
+        transactionId: string,
+        headers: any = adminHeaders
+      ) =>
+        api.post(
+          `/admin/workflows-executions/${workflowId}/${transactionId}/cancel`,
+          {},
+          headers
+        )
+
+      // Builds a workflow with one finished step (that has a compensation
+      // handler we can spy on) followed by an async step that stays parked, so
+      // the execution sits in `invoking` until something resolves it.
+      const buildRunningWorkflow = (compensateSpy = jest.fn()) => {
+        const syncStep = createStep(
+          { name: "cancel-sync-step-" + unique() },
+          async () => new StepResponse("done", "compensate-me"),
+          async (data) => {
+            compensateSpy(data)
+          }
+        )
+        const asyncStepName = "cancel-async-step-" + unique()
+        const asyncStep = createStep(
+          { name: asyncStepName, async: true },
+          () => {}
+        )
+
+        const workflowId = "workflow-cancel-" + unique()
+        createWorkflow({ name: workflowId, retentionTime: 60 }, () => {
+          syncStep()
+          asyncStep()
+          return new WorkflowResponse(void 0)
+        })
+
+        return { workflowId, asyncStepName, compensateSpy }
+      }
+
+      // AC1: cancels a running execution and returns the updated execution.
+      it("should cancel a running execution and return the updated execution", async () => {
+        const { workflowId, compensateSpy } = buildRunningWorkflow()
+        const transactionId = "trx_cancel_" + unique()
+
+        await workflowOrcModule.run(workflowId, { transactionId })
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.INVOKING
+        )
+
+        const response = await cancel(workflowId, transactionId)
+
+        expect(response.status).toBe(200)
+        // The body is the updated execution, not a bare acknowledgement.
+        expect(response.data.workflow_execution).toEqual(
+          expect.objectContaining({
+            workflow_id: workflowId,
+            transaction_id: transactionId,
+          })
+        )
+        expect(response.data.workflow_execution.state).not.toBe(
+          TransactionState.INVOKING
+        )
+
+        // The steps that had already finished were compensated, and the
+        // execution settled in `reverted` (failing the waiting step is what
+        // lets the engine start compensating).
+        expect(compensateSpy).toHaveBeenCalledWith("compensate-me")
+        expect(response.data.workflow_execution.state).toBe(
+          TransactionState.REVERTED
+        )
+
+        // The stored execution reflects the same new state as the response.
+        const stored = await getExecution(workflowId, transactionId)
+        expect(stored.state).toBe(TransactionState.REVERTED)
+      })
+
+      // AC2: an execution that is DONE is rejected and left untouched.
+      it("should return 400 when the execution is already done", async () => {
+        const { workflowId, asyncStepName, compensateSpy } =
+          buildRunningWorkflow()
+        const transactionId = "trx_cancel_done_" + unique()
+
+        await workflowOrcModule.run(workflowId, { transactionId })
+        await api.post(
+          `/admin/workflows-executions/${workflowId}/steps/success`,
+          { transaction_id: transactionId, step_id: asyncStepName },
+          adminHeaders
+        )
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.DONE
+        )
+
+        const error = await cancel(workflowId, transactionId).catch((e) => e)
+
+        expect(error.response.status).toBe(400)
+        expect(error.response.data.message).toContain("done")
+        // Nothing changed: still done, nothing was rolled back.
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.DONE
+        )
+        expect(compensateSpy).not.toHaveBeenCalled()
+      })
+
+      // AC2: an execution that is REVERTED is rejected and left untouched.
+      it("should return 400 when the execution is already reverted", async () => {
+        const { workflowId, asyncStepName } = buildRunningWorkflow()
+        const transactionId = "trx_cancel_reverted_" + unique()
+
+        await workflowOrcModule.run(workflowId, { transactionId })
+        await api.post(
+          `/admin/workflows-executions/${workflowId}/steps/failure`,
+          { transaction_id: transactionId, step_id: asyncStepName },
+          adminHeaders
+        )
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.REVERTED
+        )
+
+        const error = await cancel(workflowId, transactionId).catch((e) => e)
+
+        expect(error.response.status).toBe(400)
+        expect(error.response.data.message).toContain("reverted")
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.REVERTED
+        )
+      })
+
+      // AC2: an execution that is FAILED is rejected and left untouched.
+      // A permanent failure happens when a compensation handler itself throws.
+      it("should return 400 when the execution has failed", async () => {
+        const failingCompensation = createStep(
+          { name: "cancel-failing-comp-" + unique() },
+          async () => new StepResponse("done", "data"),
+          async () => {
+            throw new Error("compensation failed")
+          }
+        )
+        const asyncStepName = "cancel-failed-async-" + unique()
+        const asyncStep = createStep(
+          { name: asyncStepName, async: true },
+          () => {}
+        )
+
+        const workflowId = "workflow-cancel-failed-" + unique()
+        createWorkflow({ name: workflowId, retentionTime: 60 }, () => {
+          failingCompensation()
+          asyncStep()
+          return new WorkflowResponse(void 0)
+        })
+        const transactionId = "trx_cancel_failed_" + unique()
+
+        await workflowOrcModule.run(workflowId, { transactionId })
+        await api.post(
+          `/admin/workflows-executions/${workflowId}/steps/failure`,
+          { transaction_id: transactionId, step_id: asyncStepName },
+          adminHeaders
+        )
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.FAILED
+        )
+
+        const error = await cancel(workflowId, transactionId).catch((e) => e)
+
+        expect(error.response.status).toBe(400)
+        expect(error.response.data.message).toContain("failed")
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.FAILED
+        )
+      })
+
+      // AC3: unknown transaction on a real workflow, and unknown workflow.
+      it("should return 404 when the transaction does not exist", async () => {
+        const { workflowId } = buildRunningWorkflow()
+
+        const error = await cancel(workflowId, "trx_does_not_exist").catch(
+          (e) => e
+        )
+
+        expect(error.response.status).toBe(404)
+      })
+
+      it("should return 404 when the workflow does not exist", async () => {
+        const error = await cancel(
+          "workflow-does-not-exist",
+          "trx_does_not_exist"
+        ).catch((e) => e)
+
+        expect(error.response.status).toBe(404)
+      })
+
+      // AC4: no authenticated admin, no cancel.
+      it("should return 401 when the request is not authenticated", async () => {
+        const { workflowId } = buildRunningWorkflow()
+        const transactionId = "trx_cancel_unauth_" + unique()
+        await workflowOrcModule.run(workflowId, { transactionId })
+
+        const error = await cancel(workflowId, transactionId, {}).catch(
+          (e) => e
+        )
+
+        expect(error.response.status).toBe(401)
+        // The unauthenticated call must not have cancelled anything.
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.INVOKING
+        )
+
+        // Clean up with an authenticated cancel. The test runner waits for
+        // every execution to finish before the next test, so leaving this one
+        // parked would stall the suite until it times out.
+        await cancel(workflowId, transactionId)
+      })
+
+      // Several async steps waiting at once: all of them must be failed so the
+      // execution can finish reverting.
+      it("should cancel an execution waiting on several async steps", async () => {
+        const stepNames = [
+          "cancel-parallel-a-" + unique(),
+          "cancel-parallel-b-" + unique(),
+        ]
+        const stepA = createStep({ name: stepNames[0], async: true }, () => {})
+        const stepB = createStep({ name: stepNames[1], async: true }, () => {})
+
+        const workflowId = "workflow-cancel-parallel-" + unique()
+        createWorkflow({ name: workflowId, retentionTime: 60 }, () => {
+          parallelize(stepA(), stepB())
+          return new WorkflowResponse(void 0)
+        })
+        const transactionId = "trx_cancel_parallel_" + unique()
+
+        await workflowOrcModule.run(workflowId, { transactionId })
+        expect((await getExecution(workflowId, transactionId)).state).toBe(
+          TransactionState.INVOKING
+        )
+
+        const response = await cancel(workflowId, transactionId)
+
+        expect(response.status).toBe(200)
+        expect(response.data.workflow_execution.state).toBe(
+          TransactionState.REVERTED
         )
       })
     })

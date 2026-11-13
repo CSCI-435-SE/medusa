@@ -62,6 +62,18 @@ export const adminWorkflowsExecutionsMiddlewares: MiddlewareRoute[] = [
     ],
   },
   {
+    // Cancel returns the updated execution, so it accepts the same `fields`
+    // query param as the GET detail route.
+    method: ["POST"],
+    matcher: "/admin/workflows-executions/:workflow_id/:transaction_id/cancel",
+    middlewares: [
+      validateAndTransformQuery(
+        AdminGetWorkflowExecutionDetailsParams,
+        QueryConfig.retrieveTransformQueryConfig
+      ),
+    ],
+  },
+  {
     method: ["POST"],
     matcher: "/admin/workflows-executions/:workflow_id/run",
     middlewares: [validateAndTransformBody(AdminCreateWorkflowsRun)],

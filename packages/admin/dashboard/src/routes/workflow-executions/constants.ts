@@ -31,6 +31,14 @@ export const TRANSACTION_ERROR_STATES: HttpTypes.TransactionState[] = [
   TransactionState.FAILED,
   TransactionState.REVERTED,
 ]
+// The only states in which an execution can be cancelled. This must stay in
+// sync with the cancel route in the API (packages/medusa), which rejects any
+// other state with a 400. `invoking` covers both running steps and executions
+// parked on an async step.
+export const TRANSACTION_CANCELLABLE_STATES: HttpTypes.TransactionState[] = [
+  TransactionState.INVOKING,
+]
+
 export const TRANSACTION_IN_PROGRESS_STATES: HttpTypes.TransactionState[] = [
   TransactionState.INVOKING,
   TransactionState.WAITING_TO_COMPENSATE,
