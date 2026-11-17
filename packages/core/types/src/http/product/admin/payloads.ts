@@ -186,6 +186,41 @@ export interface AdminCreateProductVariant {
   options?: Record<string, string>
 }
 
+export interface AdminBundleComponent {
+  /**
+   * The ID of the component's variant. It must track inventory.
+   */
+  variant_id: string
+  /**
+   * How many of the variant are in one bundle. A whole number of at least 1.
+   */
+  quantity: number
+}
+
+export interface AdminCreateBundle
+  extends Omit<AdminCreateProduct, "variants" | "options"> {
+  /**
+   * The variants the bundle is made of. At least 2, each listed once.
+   */
+  components: AdminBundleComponent[]
+  /**
+   * The bundle's own prices, one per currency.
+   */
+  prices: AdminCreateProductVariantPrice[]
+}
+
+export interface AdminUpdateBundle
+  extends Omit<AdminUpdateProduct, "variants" | "options"> {
+  /**
+   * Replaces the bundle's components.
+   */
+  components?: AdminBundleComponent[]
+  /**
+   * Replaces the bundle's prices.
+   */
+  prices?: AdminCreateProductVariantPrice[]
+}
+
 export interface AdminCreateProduct {
   /**
    * The product's title.

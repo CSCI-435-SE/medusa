@@ -228,6 +228,21 @@ export const AdminBatchUpdateProductVariant = UpdateProductVariant.extend({
   id: z.string(),
 })
 
+/**
+ * Product metadata for the plain product create/update routes.
+ * The `bundle` key marks a product as a bundle and holds its components, so it
+ * is reserved: only the bundle routes (/admin/bundles) may write it. Letting a
+ * plain product request set or clear it would create a fake bundle or break a
+ * real one.
+ */
+const ProductMetadata = z
+  .record(z.string(), z.unknown())
+  .nullish()
+  .refine((metadata) => !metadata || !("bundle" in metadata), {
+    message:
+      "The 'bundle' metadata key is reserved. Use the /admin/bundles routes to manage bundles.",
+  })
+
 export const IdAssociation = z.object({
   id: z.string(),
 })
@@ -271,7 +286,7 @@ export const CreateProduct = z
     mid_code: z.string().nullish(),
     origin_country: z.string().nullish(),
     material: z.string().nullish(),
-    metadata: z.record(z.string(), z.unknown()).nullish(),
+    metadata: ProductMetadata,
   })
   .strict()
 
@@ -327,7 +342,7 @@ export const UpdateProduct = z
     mid_code: z.string().nullish(),
     origin_country: z.string().nullish(),
     material: z.string().nullish(),
-    metadata: z.record(z.string(), z.unknown()).nullish(),
+    metadata: ProductMetadata,
   })
   .strict()
 

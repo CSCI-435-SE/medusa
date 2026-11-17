@@ -27,6 +27,7 @@ import { adminProductTagRoutesMiddlewares } from "./admin/product-tags/middlewar
 import { adminProductOptionRoutesMiddlewares } from "./admin/product-options/middlewares"
 import { adminProductTypeRoutesMiddlewares } from "./admin/product-types/middlewares"
 import { adminProductVariantRoutesMiddlewares } from "./admin/product-variants/middlewares"
+import { adminBundleRoutesMiddlewares } from "./admin/bundles/middlewares"
 import { adminProductRoutesMiddlewares } from "./admin/products/middlewares"
 import { adminPromotionRoutesMiddlewares } from "./admin/promotions/middlewares"
 import { adminPropertyLabelsMiddlewares } from "./admin/property-labels/middlewares"
@@ -121,6 +122,7 @@ export default defineMiddlewares([
   ...adminLocalesRoutesMiddlewares,
   ...storeCurrencyRoutesMiddlewares,
   ...adminProductRoutesMiddlewares,
+  ...adminBundleRoutesMiddlewares,
   ...adminPaymentRoutesMiddlewares,
   ...adminPriceListsRoutesMiddlewares,
   ...adminPricePreferencesRoutesMiddlewares,

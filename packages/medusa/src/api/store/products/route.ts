@@ -8,7 +8,12 @@ import {
 } from "@medusajs/framework/utils"
 import IndexEngineFeatureFlag from "../../../feature-flags/index-engine"
 import { wrapVariantsWithInventoryQuantityForSalesChannel } from "../../utils/middlewares"
-import { RequestWithContext, wrapProductsWithTaxPrices } from "./helpers"
+import {
+  RequestWithContext,
+  applyBundleField,
+  prepareBundleFields,
+  wrapProductsWithTaxPrices,
+} from "./helpers"
 
 export const GET = async (
   req: RequestWithContext<HttpTypes.StoreProductListParams>,
@@ -55,6 +60,9 @@ async function getProductsWithIndexEngine(
     )
   }
 
+  // Select metadata internally so bundles can be marked (issue #112).
+  const bundleFields = prepareBundleFields(req.queryConfig.fields)
+
   const filters: Record<string, any> = req.filterableFields
   if (isPresent(filters.sales_channel_id)) {
     const salesChannelIds = filters.sales_channel_id
@@ -96,7 +104,7 @@ async function getProductsWithIndexEngine(
   await wrapProductsWithTaxPrices(req, products)
 
   res.json({
-    products,
+    products: applyBundleField(products, bundleFields),
     count: metadata!.estimate_count,
     estimate_count: metadata!.estimate_count,
     offset: metadata!.skip,
@@ -127,6 +135,9 @@ async function getProducts(
     )
   }
 
+  // Select metadata internally so bundles can be marked (issue #112).
+  const bundleFields = prepareBundleFields(req.queryConfig.fields)
+
   const { data: products = [], metadata } = await query.graph(
     {
       entity: "product",
@@ -153,7 +164,7 @@ async function getProducts(
   await wrapProductsWithTaxPrices(req, products)
 
   res.json({
-    products,
+    products: applyBundleField(products, bundleFields),
     count: metadata!.count,
     offset: metadata!.skip,
     limit: metadata!.take,

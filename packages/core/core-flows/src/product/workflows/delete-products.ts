@@ -14,6 +14,7 @@ import {
 } from "../../common"
 import { deleteInventoryItemWorkflow } from "../../inventory"
 import { deleteProductsStep } from "../steps/delete-products"
+import { validateNoBundleUsageStep } from "../steps/validate-no-bundle-usage"
 import { deleteProductOptionsWorkflow } from "./delete-product-options"
 
 /**
@@ -104,6 +105,15 @@ export const deleteProductsWorkflow = createWorkflow(
         return { variantsToBeDeleted: allVariants, allVariantsIds }
       }
     )
+
+    // Issue #112: block the delete when any variant of these products is a
+    // component of a bundle. Runs before anything is deleted so nothing needs
+    // to be rolled back. Bundles being deleted in this same call are ignored,
+    // so deleting a bundle together with its components still works.
+    validateNoBundleUsageStep({
+      variant_ids: allVariantsIds,
+      ignore_product_ids: input.ids,
+    })
 
     const toDeleteInventoryItemIds = transform(
       { variants: variantsToBeDeleted },
