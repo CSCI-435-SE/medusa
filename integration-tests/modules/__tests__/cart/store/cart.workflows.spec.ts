@@ -671,7 +671,7 @@ medusaIntegrationTestRunner({
               handlerType: "invoke",
               error: expect.objectContaining({
                 message: expect.stringContaining(
-                  "Some variant does not have the required inventory"
+                  "Test product is out of stock."
                 ),
               }),
             },
@@ -3704,7 +3704,7 @@ medusaIntegrationTestRunner({
               action: "confirm-item-inventory-as-step",
               handlerType: "invoke",
               error: expect.objectContaining({
-                message: `Some variant does not have the required inventory`,
+                message: `Test product is out of stock.`,
               }),
             },
           ])

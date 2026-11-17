@@ -52,6 +52,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 3,
           quantity: 2, // overrides the quantity from the items array
@@ -115,6 +116,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 1,
           quantity: 1,
@@ -185,6 +187,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 1,
           quantity: 1,
@@ -193,6 +196,7 @@ describe("prepareConfirmInventoryInput", () => {
         },
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_2",
           required_quantity: 2,
           quantity: 1,
@@ -315,6 +319,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 1,
           quantity: 1,
@@ -384,6 +389,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 1,
           quantity: 2,
@@ -453,6 +459,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 1,
           quantity: 2,
@@ -542,6 +549,7 @@ describe("prepareConfirmInventoryInput", () => {
       items: [
         {
           id: "item_1",
+          variant_id: "pv_1",
           inventory_item_id: "ii_1",
           required_quantity: 1,
           quantity: 1,
@@ -550,6 +558,7 @@ describe("prepareConfirmInventoryInput", () => {
         },
         {
           id: "item_2",
+          variant_id: "pv_2",
           inventory_item_id: "ii_2",
           required_quantity: 1,
           quantity: 1,

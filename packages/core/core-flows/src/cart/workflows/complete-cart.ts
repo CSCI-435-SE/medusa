@@ -42,6 +42,7 @@ import {
   validateShippingStep,
 } from "../steps"
 import { compensatePaymentIfNeededStep } from "../steps/compensate-payment-if-needed"
+import { prepareBundleRefundSharesStep } from "../steps/prepare-bundle-refund-shares"
 import { reserveInventoryStep } from "../steps/reserve-inventory"
 import { completeCartFields } from "../utils/fields"
 import { prepareConfirmInventoryInput } from "../utils/prepare-confirm-inventory-input"
@@ -527,7 +528,26 @@ export const completeCartWorkflow = createWorkflow(
         }
       })
 
-      const createdOrders = createOrdersStep([cartToOrder])
+      // Issue #113: save each bundle component's share of the price paid on
+      // the order line, so a single component can be returned later.
+      const bundleRefundShares = prepareBundleRefundSharesStep({
+        cart: cartData.data,
+      })
+
+      const orderToCreate = transform(
+        { cartToOrder, bundleRefundShares, cart: cartData.data },
+        ({ cartToOrder, bundleRefundShares, cart }) => ({
+          ...cartToOrder,
+          items: cartToOrder.items.map((lineItem, i) => {
+            const bundle = bundleRefundShares[cart.items[i].id]
+            return bundle
+              ? { ...lineItem, metadata: { ...lineItem.metadata, bundle } }
+              : lineItem
+          }),
+        })
+      )
+
+      const createdOrders = createOrdersStep([orderToCreate])
 
       const createdOrder = transform({ createdOrders }, ({ createdOrders }) => {
         return createdOrders[0]

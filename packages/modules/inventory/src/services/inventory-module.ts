@@ -173,6 +173,10 @@ export default class InventoryModuleService
     }
 
     if (validateQuantityAtLocation) {
+      // Lines of one batch that use the same item at the same location (a
+      // bundle and one of its components, for example) share its stock.
+      const requestedByLevel = new Map<string, BigNumberInput>()
+
       for (const item of data) {
         if (!!item.allow_backorder) {
           continue
@@ -184,7 +188,14 @@ export default class InventoryModuleService
 
         const level = locations?.get(item.location_id)!
 
-        if (MathBN.lt(level.available_quantity, item.quantity!)) {
+        const levelKey = `${item.inventory_item_id}:${item.location_id}`
+        const requested = MathBN.add(
+          requestedByLevel.get(levelKey) ?? 0,
+          item.quantity!
+        )
+        requestedByLevel.set(levelKey, requested)
+
+        if (MathBN.lt(level.available_quantity, requested)) {
           throw new MedusaError(
             MedusaError.Types.NOT_ALLOWED,
             `Not enough stock available for item ${item.inventory_item_id} at location ${item.location_id}`,

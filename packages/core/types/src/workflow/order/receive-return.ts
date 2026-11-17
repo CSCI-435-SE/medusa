@@ -20,6 +20,11 @@ interface ReceiveReturnItem {
    * Custom key-value pairs of data to store in the return item.
    */
   metadata?: Record<string, any> | null
+  /**
+   * The ID of the bundle component variant to receive, when the return item
+   * returns a single component of a bundle.
+   */
+  component_variant_id?: string | null
 }
 
 /**

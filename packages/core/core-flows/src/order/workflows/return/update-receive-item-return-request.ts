@@ -6,7 +6,12 @@ import {
   OrderWorkflow,
   ReturnDTO,
 } from "@medusajs/framework/types"
-import { ChangeActionType, OrderChangeStatus } from "@medusajs/framework/utils"
+import {
+  ChangeActionType,
+  MathBN,
+  MedusaError,
+  OrderChangeStatus,
+} from "@medusajs/framework/utils"
 import {
   WorkflowData,
   WorkflowResponse,
@@ -15,6 +20,7 @@ import {
   transform,
 } from "@medusajs/framework/workflows-sdk"
 import { useRemoteQueryStep } from "../../../common"
+import { getReturnedBundleComponent } from "../../utils/bundle-refunds"
 import {
   previewOrderChangeStep,
   updateOrderChangeActionsStep,
@@ -118,6 +124,24 @@ export const updateReceiveItemReturnRequestValidationStep = createStep(
     ) {
       throw new Error(
         `Action ${associatedAction.id} is not receiving an item return request`
+      )
+    }
+
+    // Issue #113: a returned bundle component's refund was worked out for its
+    // quantity, so the quantity can't be changed in place.
+    if (
+      getReturnedBundleComponent(
+        associatedAction.details?.metadata as Record<string, unknown>
+      ) &&
+      input.data?.quantity != null &&
+      !MathBN.eq(
+        input.data.quantity,
+        associatedAction.details!.quantity as number
+      )
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.NOT_ALLOWED,
+        "The quantity of a returned bundle item can't be changed. Remove the item and add it again with the new quantity."
       )
     }
   }

@@ -33,6 +33,7 @@ import {
 } from "../../../common"
 import { createReturnFulfillmentWorkflow } from "../../../fulfillment"
 import { createCompleteReturnStep } from "../../steps/return/create-complete-return"
+import { prepareBundleReturnItemsStep } from "../../steps/return/prepare-bundle-return-items"
 import { receiveReturnStep } from "../../steps/return/receive-return"
 import {
   throwIfItemsDoesNotExistsInOrder,
@@ -112,6 +113,7 @@ function prepareReceiveItems({
   items: {
     id: string
     quantity: BigNumberInput
+    metadata?: Record<string, unknown> | null
   }[]
   createdBy?: string
 }) {
@@ -127,6 +129,7 @@ function prepareReceiveItems({
     items: (items ?? []).map((i) => ({
       id: i.id,
       quantity: i.quantity,
+      metadata: i.metadata,
     })),
     created_by: createdBy,
   }
@@ -375,6 +378,12 @@ export const createAndCompleteReturnOrderWorkflow = createWorkflow(
 
     createCompleteReturnValidationStep({ order, input })
 
+    // Issue #113: names a returned bundle component and its refund on the item.
+    const returnItems = prepareBundleReturnItemsStep({
+      order_id: input.order_id,
+      items: input.items,
+    })
+
     const setPricingContext = createHook(
       "setPricingContext",
       {
@@ -428,7 +437,7 @@ export const createAndCompleteReturnOrderWorkflow = createWorkflow(
     const returnCreated = createCompleteReturnStep({
       order_id: input.order_id,
       location_id: input.location_id,
-      items: input.items,
+      items: returnItems,
       shipping_method: shippingMethodData,
       created_by: input.created_by,
     })
@@ -451,7 +460,7 @@ export const createAndCompleteReturnOrderWorkflow = createWorkflow(
       {
         input,
         returnId: returnCreated.id,
-        items: order.items!,
+        items: returnItems,
         createdBy: input.created_by!,
       },
       ({ input, ...data }) => {

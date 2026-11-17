@@ -47,6 +47,7 @@ export async function cancelReturn(
         "items.item_id",
         "items.quantity",
         "items.received_quantity",
+        "items.metadata",
       ],
       relations: ["items", "shipping_methods"],
     },
@@ -65,6 +66,8 @@ export async function cancelReturn(
       details: {
         reference_id: item.item_id,
         quantity: item.quantity,
+        // Keeps a bundle component's refund amount (issue #113).
+        metadata: item.metadata,
       },
     })
   })

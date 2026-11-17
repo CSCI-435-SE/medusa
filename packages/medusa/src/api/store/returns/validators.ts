@@ -25,6 +25,7 @@ const ItemSchema = z.object({
   quantity: z.number().min(1),
   reason_id: z.string().nullish(),
   note: z.string().nullish(),
+  component_variant_id: z.string().nullish(),
 })
 
 export const StorePostReturnsReqSchema = z.object({

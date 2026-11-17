@@ -3253,7 +3253,7 @@ medusaIntegrationTestRunner({
                   ],
                 }),
                 error: {
-                  message: `Not enough stock available for item ${inventoryItem.id} at location ${stockLocation.id}`,
+                  message: `Test fixture ${shippingProfile.id} is out of stock.`,
                   name: expect.any(String),
                   type: "not_allowed",
                 },

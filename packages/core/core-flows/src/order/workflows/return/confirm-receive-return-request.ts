@@ -26,6 +26,11 @@ import {
 import { emitEventStep, useRemoteQueryStep } from "../../../common"
 import { adjustInventoryLevelsStep } from "../../../inventory/steps"
 import {
+  bundleReturnItemKey,
+  getComponentRestockAdjustments,
+  getReturnedBundleComponent,
+} from "../../utils/bundle-refunds"
+import {
   previewOrderChangeStep,
   updateReturnItemsStep,
   updateReturnsStep,
@@ -96,7 +101,11 @@ export const confirmReceiveReturnValidationStep = createStep(
 )
 
 // Loop through the items in the return and prepare the inventory adjustment of items associated with each variant
-function prepareInventoryUpdate({ orderReturn, returnedQuantityMap }) {
+function prepareInventoryUpdate({
+  orderReturn,
+  returnedQuantityMap,
+  receivedComponents,
+}) {
   const inventoryAdjustment: {
     inventory_item_id: string
     location_id: string
@@ -163,6 +172,18 @@ function prepareInventoryUpdate({ orderReturn, returnedQuantityMap }) {
     }
   }
 
+  // Issue #113: a received bundle component restocks only its own inventory
+  // items, saved on the order line when the order was placed.
+  for (const adjustment of getComponentRestockAdjustments({
+    received: receivedComponents ?? [],
+    orderItems: (orderReturn.items ?? []).map((item) => item.item),
+  })) {
+    inventoryAdjustment.push({
+      ...adjustment,
+      location_id: orderReturn.location_id,
+    })
+  }
+
   return inventoryAdjustment
 }
 
@@ -215,6 +236,8 @@ export const confirmReturnReceiveWorkflow = createWorkflow(
         "canceled_at",
         "items.*",
         "items.item.variant_id",
+        "items.item.id",
+        "items.item.metadata",
         "items.item.variant.manage_inventory",
         "items.item.variant.inventory_items.inventory_item_id",
         "items.item.variant.inventory_items.required_quantity",
@@ -255,103 +278,129 @@ export const confirmReturnReceiveWorkflow = createWorkflow(
       list: false,
     }).config({ name: "order-change-query" })
 
-    const { updateReturnItem, returnedQuantityMap, updateReturn } = transform(
-      { orderChange, orderReturn },
-      (data) => {
-        const returnedQuantityMap: Record<string, BigNumberInput> = {}
+    const {
+      updateReturnItem,
+      returnedQuantityMap,
+      receivedComponents,
+      updateReturn,
+    } = transform({ orderChange, orderReturn }, (data) => {
+      const returnedQuantityMap: Record<string, BigNumberInput> = {}
+      const receivedComponents: {
+        item_id: string
+        quantity: BigNumberInput
+        variant_id: string
+      }[] = []
 
-        const retItems: OrderReturnItemDTO[] = data.orderReturn.items ?? []
-        const received: OrderChangeActionDTO[] = []
+      const retItems: OrderReturnItemDTO[] = data.orderReturn.items ?? []
+      const received: OrderChangeActionDTO[] = []
 
-        data.orderChange.actions.forEach((act) => {
-          if (
-            [
-              ChangeActionType.RECEIVE_RETURN_ITEM,
-              ChangeActionType.RECEIVE_DAMAGED_RETURN_ITEM,
-            ].includes(act.action as ChangeActionType)
-          ) {
-            received.push(act)
+      data.orderChange.actions.forEach((act) => {
+        if (
+          [
+            ChangeActionType.RECEIVE_RETURN_ITEM,
+            ChangeActionType.RECEIVE_DAMAGED_RETURN_ITEM,
+          ].includes(act.action as ChangeActionType)
+        ) {
+          received.push(act)
 
-            if (act.action === ChangeActionType.RECEIVE_RETURN_ITEM) {
-              const itemId = act.details!.reference_id as string
+          if (act.action === ChangeActionType.RECEIVE_RETURN_ITEM) {
+            const itemId = act.details!.reference_id as string
 
-              const variantId = (retItems as any).find(
-                (i: any) => i.item_id === itemId
-              )?.item?.variant_id
-
-              if (!variantId) {
-                return
-              }
-
-              const currentQuantity = returnedQuantityMap[variantId] ?? 0
-              returnedQuantityMap[variantId] = MathBN.add(
-                currentQuantity,
-                act.details!.quantity as number
-              )
+            const component = getReturnedBundleComponent(
+              act.details!.metadata as Record<string, unknown>
+            )
+            if (component) {
+              receivedComponents.push({
+                item_id: itemId,
+                quantity: act.details!.quantity as BigNumberInput,
+                variant_id: component.variant_id,
+              })
+              return
             }
+
+            const variantId = (retItems as any).find(
+              (i: any) => i.item_id === itemId
+            )?.item?.variant_id
+
+            if (!variantId) {
+              return
+            }
+
+            const currentQuantity = returnedQuantityMap[variantId] ?? 0
+            returnedQuantityMap[variantId] = MathBN.add(
+              currentQuantity,
+              act.details!.quantity as number
+            )
           }
-        })
+        }
+      })
 
-        const itemMap = retItems.reduce((acc, item: any) => {
-          acc[item.item_id] = item.id
-          return acc
-        }, {})
+      // A bundle line has one return item per returned component, so return
+      // items are matched by line item and component.
+      const itemMap = retItems.reduce((acc, item: any) => {
+        acc[bundleReturnItemKey(item.item_id, item.metadata)] = item.id
+        return acc
+      }, {})
 
-        const itemUpdates = {}
-        received.forEach((act) => {
-          const itemId = act.details!.reference_id as string
-          if (itemUpdates[itemId]) {
-            itemUpdates[itemId].received_quantity = MathBN.add(
-              itemUpdates[itemId].received_quantity,
+      const itemUpdates = {}
+      received.forEach((act) => {
+        const itemId = bundleReturnItemKey(
+          act.details!.reference_id as string,
+          act.details!.metadata as Record<string, unknown>
+        )
+        if (itemUpdates[itemId]) {
+          itemUpdates[itemId].received_quantity = MathBN.add(
+            itemUpdates[itemId].received_quantity,
+            act.details!.quantity as BigNumberInput
+          )
+
+          if (act.action === ChangeActionType.RECEIVE_DAMAGED_RETURN_ITEM) {
+            itemUpdates[itemId].damaged_quantity = MathBN.add(
+              itemUpdates[itemId].damaged_quantity,
               act.details!.quantity as BigNumberInput
             )
-
-            if (act.action === ChangeActionType.RECEIVE_DAMAGED_RETURN_ITEM) {
-              itemUpdates[itemId].damaged_quantity = MathBN.add(
-                itemUpdates[itemId].damaged_quantity,
-                act.details!.quantity as BigNumberInput
-              )
-            }
-
-            return
           }
 
-          itemUpdates[itemId] = {
-            id: itemMap[itemId],
-            received_quantity: act.details!.quantity,
-            damaged_quantity:
-              act.action === ChangeActionType.RECEIVE_DAMAGED_RETURN_ITEM
-                ? act.details!.quantity
-                : 0,
-          }
-        })
-
-        const hasReceivedAllItems = retItems.every((item) => {
-          const received = itemUpdates[item.item_id]
-            ? itemUpdates[item.item_id].received_quantity
-            : item.received_quantity
-
-          return MathBN.eq(received, item.quantity)
-        })
-        const updateReturnData = hasReceivedAllItems
-          ? { status: ReturnStatus.RECEIVED, received_at: new Date() }
-          : { status: ReturnStatus.PARTIALLY_RECEIVED }
-
-        const updateReturn = {
-          id: data.orderReturn.id,
-          ...updateReturnData,
+          return
         }
 
-        return {
-          updateReturnItem: Object.values(itemUpdates) as any,
-          returnedQuantityMap,
-          updateReturn,
+        itemUpdates[itemId] = {
+          id: itemMap[itemId],
+          received_quantity: act.details!.quantity,
+          damaged_quantity:
+            act.action === ChangeActionType.RECEIVE_DAMAGED_RETURN_ITEM
+              ? act.details!.quantity
+              : 0,
         }
+      })
+
+      const hasReceivedAllItems = retItems.every((item) => {
+        const key = bundleReturnItemKey(item.item_id, item.metadata)
+        const received = itemUpdates[key]
+          ? itemUpdates[key].received_quantity
+          : item.received_quantity
+
+        return MathBN.eq(received, item.quantity)
+      })
+      const updateReturnData = hasReceivedAllItems
+        ? { status: ReturnStatus.RECEIVED, received_at: new Date() }
+        : { status: ReturnStatus.PARTIALLY_RECEIVED }
+
+      const updateReturn = {
+        id: data.orderReturn.id,
+        ...updateReturnData,
       }
-    )
+
+      return {
+        updateReturnItem: Object.values(itemUpdates) as any,
+        returnedQuantityMap,
+        receivedComponents,
+        updateReturn,
+      }
+    })
 
     const inventoryAdjustment = transform(
-      { orderReturn, input, returnedQuantityMap },
+      { orderReturn, input, returnedQuantityMap, receivedComponents },
       prepareInventoryUpdate
     )
 
