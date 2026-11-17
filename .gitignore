@@ -35,3 +35,6 @@ dist/**
 
 .cursorignore
 **/.medusa
+# Stryker mutation testing output
+.stryker-tmp
+reports/mutation
