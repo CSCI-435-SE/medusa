@@ -24,7 +24,7 @@ moduleIntegrationTestRunner<IInventoryService>({
   injectedDependencies: {
     [Modules.EVENT_BUS]: new MockEventBusService(),
   },
-  testSuite: ({ service }) => {
+  testSuite: ({ service, MikroOrmWrapper }) => {
     describe("Inventory Module Service", () => {
       it(`should export the appropriate linkable configuration`, () => {
         const linkable = Module(Modules.INVENTORY, {
@@ -1427,6 +1427,47 @@ moduleIntegrationTestRunner<IInventoryService>({
 
           expect(items).toEqual([])
           expect(count).toEqual(0)
+        })
+      })
+
+      describe("stock_status filter with more ids than one query allows", () => {
+        // Postgres allows at most 65535 bound parameters per query
+        const total = 70000
+
+        beforeEach(async () => {
+          // Items without location levels are out of stock
+          await MikroOrmWrapper.forkManager().execute(
+            `INSERT INTO inventory_item (id, sku) SELECT 'iitem_bulk_' || g, 'bulk-' || g FROM generate_series(1, ${total}) g`
+          )
+        })
+
+        it("counts and pages all matches without other filters", async () => {
+          const [items, count] = await service.listAndCountInventoryItems(
+            { stock_status: "out_of_stock" },
+            { take: 2 }
+          )
+
+          expect(count).toEqual(total)
+          expect(items).toHaveLength(2)
+        })
+
+        it("combines with other filters", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: "out_of_stock",
+            sku: "bulk-70000",
+          })
+
+          expect(count).toEqual(1)
+          expect(items[0].id).toEqual("iitem_bulk_70000")
+        })
+
+        it("lists every match when no page size is given", async () => {
+          const items = await service.listInventoryItems(
+            { stock_status: "out_of_stock" },
+            { select: ["id"] }
+          )
+
+          expect(items).toHaveLength(total)
         })
       })
     })
