@@ -1,8 +1,13 @@
 import { MedusaError } from "@medusajs/framework/utils"
 import {
+  assertBundleKeepsSingleVariant,
   assertNoBundleUsesVariants,
+  assertNoBundleVariants,
   buildBundleInventoryLinks,
   findBundlesUsingVariants,
+  getBundleVariantId,
+  isEmptyMetadataUpdate,
+  protectBundleUpdate,
   validateBundleComponents,
 } from "../bundle"
 
@@ -212,5 +217,159 @@ describe("bundle usage lookup (issue #112, AC 11)", () => {
     expect(() =>
       assertNoBundleUsesVariants([cameraKit], ["var_lens"], ["prod_kit"])
     ).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Review follow-up for #112: plain product routes must not break a bundle.
+// ---------------------------------------------------------------------------
+
+const aBundle = { id: "prod_kit", title: "Camera kit" }
+const bundleMetadata = { bundle: { components: validComponents } }
+
+describe("isEmptyMetadataUpdate", () => {
+  it.each([null, {}])("is true for %p (these replace all metadata)", (value) => {
+    expect(isEmptyMetadataUpdate(value)).toBe(true)
+  })
+
+  it.each([undefined, { erp_id: "1" }, { bundle: "" }])(
+    "is false for %p",
+    (value) => {
+      expect(isEmptyMetadataUpdate(value)).toBe(false)
+    }
+  )
+})
+
+describe("protectBundleUpdate", () => {
+  it.each([null, {}])(
+    "drops metadata %p so the marker isn't erased",
+    (metadata) => {
+      const result = protectBundleUpdate(
+        { id: "prod_kit", title: "New", metadata },
+        aBundle
+      )
+
+      expect(result).toEqual({ id: "prod_kit", title: "New" })
+      expect(result).not.toHaveProperty("metadata")
+    }
+  )
+
+  it("keeps a non-empty metadata value (the base service merges it)", () => {
+    const update = { metadata: { erp_id: "1" } }
+    expect(protectBundleUpdate(update, aBundle)).toEqual(update)
+  })
+
+  it("keeps an update without metadata untouched", () => {
+    const update = { title: "New" }
+    expect(protectBundleUpdate(update, aBundle)).toEqual(update)
+  })
+
+  it("rejects a variant without an id, which would add a second variant", () => {
+    expect(() =>
+      protectBundleUpdate({ variants: [{ id: "var_1" }, {}] }, aBundle)
+    ).toThrow(/exactly one variant/)
+  })
+
+  it("allows updating the existing variant by id", () => {
+    const update = { variants: [{ id: "var_1" }] }
+    expect(protectBundleUpdate(update, aBundle)).toEqual(update)
+  })
+
+  it.each(["", null])(
+    "rejects naming the bundle marker with %p, which would delete it",
+    (value) => {
+      expect(() =>
+        protectBundleUpdate({ metadata: { bundle: value } }, aBundle)
+      ).toThrow(/bundle marker.*can't be removed/)
+    }
+  )
+
+  it("allows writing real components to the marker (what the bundle workflows do)", () => {
+    const update = { metadata: { bundle: { components: validComponents } } }
+    expect(protectBundleUpdate(update, aBundle)).toEqual(update)
+  })
+
+  it("does not modify the input object", () => {
+    const update = { metadata: null as any, title: "x" }
+    protectBundleUpdate(update, aBundle)
+    expect(update.metadata).toBeNull()
+  })
+})
+
+describe("assertBundleKeepsSingleVariant", () => {
+  it("rejects adding a variant to a bundle that already has one", () => {
+    expect(() =>
+      assertBundleKeepsSingleVariant(
+        [{ ...aBundle, metadata: bundleMetadata, variantCount: 1 }],
+        { prod_kit: 1 }
+      )
+    ).toThrow(/"Camera kit" \(prod_kit\).*exactly one variant/)
+  })
+
+  it("allows the bundle's own first variant (bundle creation)", () => {
+    expect(() =>
+      assertBundleKeepsSingleVariant(
+        [{ ...aBundle, metadata: bundleMetadata, variantCount: 0 }],
+        { prod_kit: 1 }
+      )
+    ).not.toThrow()
+  })
+
+  it("rejects creating two variants at once for a new bundle", () => {
+    expect(() =>
+      assertBundleKeepsSingleVariant(
+        [{ ...aBundle, metadata: bundleMetadata, variantCount: 0 }],
+        { prod_kit: 2 }
+      )
+    ).toThrow(/exactly one variant/)
+  })
+
+  it("does not limit normal products", () => {
+    expect(() =>
+      assertBundleKeepsSingleVariant(
+        [{ id: "prod_x", title: "Shirt", metadata: null, variantCount: 3 }],
+        { prod_x: 5 }
+      )
+    ).not.toThrow()
+  })
+})
+
+describe("assertNoBundleVariants", () => {
+  it("rejects deleting a bundle's variant and names the bundle", () => {
+    expect(() =>
+      assertNoBundleVariants([
+        { id: "var_k", product: { ...aBundle, metadata: bundleMetadata } },
+      ])
+    ).toThrow(/"Camera kit" \(prod_kit\).*Delete the bundle instead/)
+  })
+
+  it("allows deleting variants of normal products", () => {
+    expect(() =>
+      assertNoBundleVariants([
+        {
+          id: "var_x",
+          product: { id: "prod_x", title: "Shirt", metadata: null },
+        },
+        { id: "var_y", product: null },
+      ])
+    ).not.toThrow()
+  })
+})
+
+describe("getBundleVariantId", () => {
+  it("returns the id of the only variant", () => {
+    expect(
+      getBundleVariantId({ id: "prod_kit", variants: [{ id: "var_1" }] })
+    ).toEqual("var_1")
+  })
+
+  it.each([
+    ["two variants", [{ id: "var_1" }, { id: "var_2" }]],
+    ["no variants", []],
+    ["missing variants", undefined],
+  ])("throws for %s instead of picking one", (_label, variants) => {
+    expect(() => getBundleVariantId({ id: "prod_kit", variants })).toThrow(
+      /must have exactly 1/
+    )
   })
 })

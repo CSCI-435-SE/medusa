@@ -1,6 +1,7 @@
 export * from "./prepare-bundle"
 export * from "./validate-no-bundle-usage"
 export * from "./load-bundle"
+export * from "./protect-bundles"
 export * from "./add-image-to-variants"
 export * from "./add-images-to-variant"
 export * from "./remove-images-from-variant"

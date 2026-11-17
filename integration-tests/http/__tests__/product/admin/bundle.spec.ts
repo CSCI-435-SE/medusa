@@ -1035,5 +1035,144 @@ medusaIntegrationTestRunner({
         expect(error.response.data.message).toMatch(/can't be duplicated/)
       })
     })
+
+    /**
+     * Review follow-up for #112: the bundle API is guarded, but the plain
+     * product routes can still reach a bundle. These tests make sure they can't
+     * erase the bundle marker or change the "one variant per bundle" shape that
+     * the update workflow relies on.
+     */
+    describe("Bundle integrity: plain product routes can't break a bundle", () => {
+      const extraVariant = {
+        title: "Extra",
+        options: { Default: "Extra" },
+        manage_inventory: false,
+        prices: [{ currency_code: "usd", amount: 1 }],
+      }
+
+      const expectMarkerIntact = async (bundleId: string) => {
+        const admin = await api.get(
+          `/admin/products/${bundleId}?fields=id,metadata`,
+          adminHeaders
+        )
+        expect(admin.data.product.metadata.bundle.components).toHaveLength(3)
+
+        const store = await api.get(`/store/products/${bundleId}`, storeHeaders)
+        expect(store.data.product.bundle.components).toHaveLength(3)
+      }
+
+      it.each([null, {}])(
+        "keeps the bundle marker when a plain product update sends metadata %p",
+        async (metadata) => {
+          const parts = await createCameraKitParts()
+          const bundle = await createBundle(bundleBody(parts))
+
+          const response = await api.post(
+            `/admin/products/${bundle.id}`,
+            { metadata },
+            adminHeaders
+          )
+
+          expect(response.status).toEqual(200)
+          await expectMarkerIntact(bundle.id)
+        }
+      )
+
+      it("still merges other metadata keys on a bundle and keeps the marker", async () => {
+        const parts = await createCameraKitParts()
+        const bundle = await createBundle(bundleBody(parts))
+
+        await api.post(
+          `/admin/products/${bundle.id}`,
+          { metadata: { erp_id: "123" } },
+          adminHeaders
+        )
+
+        const admin = await api.get(
+          `/admin/products/${bundle.id}?fields=id,metadata`,
+          adminHeaders
+        )
+        expect(admin.data.product.metadata.erp_id).toEqual("123")
+        await expectMarkerIntact(bundle.id)
+      })
+
+      it("rejects adding a second variant through the variants route", async () => {
+        const parts = await createCameraKitParts()
+        const bundle = await createBundle(bundleBody(parts))
+
+        const error = await api
+          .post(
+            `/admin/products/${bundle.id}/variants`,
+            extraVariant,
+            adminHeaders
+          )
+          .catch((e) => e)
+
+        expect(error.response.status).toEqual(400)
+        expect(error.response.data.message).toMatch(/bundle/i)
+
+        const variants = (
+          await api.get(`/admin/products/${bundle.id}/variants`, adminHeaders)
+        ).data.variants
+        expect(variants).toHaveLength(1)
+      })
+
+      it("rejects adding a variant through a product update", async () => {
+        const parts = await createCameraKitParts()
+        const bundle = await createBundle(bundleBody(parts))
+
+        const error = await api
+          .post(
+            `/admin/products/${bundle.id}`,
+            { variants: [extraVariant] },
+            adminHeaders
+          )
+          .catch((e) => e)
+
+        expect(error.response.status).toEqual(400)
+        expect(error.response.data.message).toMatch(/bundle/i)
+
+        const variants = (
+          await api.get(`/admin/products/${bundle.id}/variants`, adminHeaders)
+        ).data.variants
+        expect(variants).toHaveLength(1)
+      })
+
+      it("rejects deleting the bundle's only variant and keeps it", async () => {
+        const parts = await createCameraKitParts()
+        const bundle = await createBundle(bundleBody(parts))
+
+        const error = await api
+          .delete(
+            `/admin/products/${bundle.id}/variants/${bundle.variants[0].id}`,
+            adminHeaders
+          )
+          .catch((e) => e)
+
+        expect(error.response.status).toEqual(400)
+        expect(error.response.data.message).toMatch(/bundle/i)
+
+        const variants = (
+          await api.get(`/admin/products/${bundle.id}/variants`, adminHeaders)
+        ).data.variants
+        expect(variants).toHaveLength(1)
+      })
+
+      it("still lets the bundle API update the bundle after those attempts", async () => {
+        const parts = await createCameraKitParts()
+        const bundle = await createBundle(bundleBody(parts))
+
+        await api
+          .post(`/admin/products/${bundle.id}/variants`, extraVariant, adminHeaders)
+          .catch(() => {})
+
+        const response = await api.post(
+          `/admin/bundles/${bundle.id}`,
+          { title: "Still editable", prices: [{ currency_code: "usd", amount: 700 }] },
+          adminHeaders
+        )
+        expect(response.status).toEqual(200)
+      })
+    })
   },
 })

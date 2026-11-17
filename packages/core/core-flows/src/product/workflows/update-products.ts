@@ -28,6 +28,7 @@ import {
 } from "../../common"
 import { upsertVariantPricesWorkflow } from "./upsert-variant-prices"
 import { dismissProductVariantsInventoryStep } from "../steps/dismiss-product-variants-inventory"
+import { protectBundleProductsStep } from "../steps/protect-bundles"
 
 /**
  * Update products that match a specified selector, along with custom data that's passed to the workflow's hooks.
@@ -443,7 +444,12 @@ export const updateProductsWorkflow = createWorkflow(
     )
 
     const toUpdateInput = transform({ input }, prepareUpdateProductInput)
-    const updatedProducts = updateProductsStep(toUpdateInput)
+
+    // Issue #112: for products that are bundles, drop a null/{} metadata value
+    // (which would erase the bundle marker) and reject added variants. Other
+    // products pass through unchanged.
+    const safeUpdateInput = protectBundleProductsStep(toUpdateInput)
+    const updatedProducts = updateProductsStep(safeUpdateInput)
 
     const variantsToDismissInventory = transform(
       { input, updatedProducts },

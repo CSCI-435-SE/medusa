@@ -23,6 +23,7 @@ import { validateInventoryItems } from "../../inventory/steps/validate-inventory
 import { createInventoryItemsWorkflow } from "../../inventory/workflows/create-inventory-items"
 import { createPriceSetsStep } from "../../pricing"
 import { createProductVariantsStep } from "../steps/create-product-variants"
+import { validateBundleVariantsStep } from "../steps/protect-bundles"
 import { createVariantPricingLinkStep } from "../steps/create-variant-pricing-link"
 
 /**
@@ -249,6 +250,20 @@ export const createProductVariantsWorkflowId = "create-product-variants"
 export const createProductVariantsWorkflow = createWorkflow(
   createProductVariantsWorkflowId,
   (input: WorkflowData<CreateProductVariantsWorkflowInput>) => {
+    // Issue #112: a bundle has exactly one variant. Reject adding another one
+    // before anything is created. (The bundle's own first variant is allowed,
+    // because the bundle product has no variants yet when it is created.)
+    const newVariantsByProduct = transform({ input }, (data) => {
+      const counts: Record<string, number> = {}
+      for (const variant of data.input.product_variants) {
+        if (variant.product_id) {
+          counts[variant.product_id] = (counts[variant.product_id] ?? 0) + 1
+        }
+      }
+      return { new_variants_by_product: counts }
+    })
+    validateBundleVariantsStep(newVariantsByProduct)
+
     // Passing prices to the product module will fail, we want to keep them for after the variant is created.
     const variantsWithoutPrices = transform({ input }, (data) =>
       data.input.product_variants.map((v) => ({

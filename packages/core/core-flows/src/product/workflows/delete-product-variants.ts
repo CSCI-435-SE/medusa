@@ -15,6 +15,7 @@ import {
   useQueryGraphStep,
 } from "../../common"
 import { deleteProductVariantsStep } from "../steps"
+import { validateNoBundleVariantDeletionStep } from "../steps/protect-bundles"
 import { validateNoBundleUsageStep } from "../steps/validate-no-bundle-usage"
 import { deleteInventoryItemWorkflow } from "../../inventory"
 
@@ -71,6 +72,10 @@ export const deleteProductVariantsWorkflow = createWorkflow(
     // Issue #112: block the delete when any of these variants is a component
     // of a bundle. Must stay before the first step that changes data.
     validateNoBundleUsageStep({ variant_ids: input.ids })
+
+    // Also block deleting a bundle's own variant, which would leave the bundle
+    // without its variant. The bundle itself should be deleted instead.
+    validateNoBundleVariantDeletionStep({ variant_ids: input.ids })
 
     removeRemoteLinkStep({
       [Modules.PRODUCT]: { variant_id: input.ids },

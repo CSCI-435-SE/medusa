@@ -258,3 +258,164 @@ export function assertNoBundleUsesVariants(
     )
   }
 }
+
+/*
+ * Protection of existing bundles from the PLAIN product routes.
+ *
+ * The bundle workflows assume a bundle product has exactly one variant (the one
+ * linked to the component inventory items) and that `metadata.bundle` is never
+ * lost. The plain product and variant routes know nothing about bundles, so the
+ * functions below let the shared workflows protect them.
+ */
+
+/**
+ * True when a metadata value in an update request would replace ALL metadata
+ * instead of being merged: `null` or an empty object. The base service only
+ * merges metadata that is non-empty, so these two erase what is stored.
+ */
+export function isEmptyMetadataUpdate(metadata: unknown): boolean {
+  return (
+    metadata === null ||
+    (typeof metadata === "object" &&
+      metadata !== undefined &&
+      Object.keys(metadata as object).length === 0)
+  )
+}
+
+/**
+ * Makes a plain product update safe for an existing bundle.
+ *
+ * - A `null` or `{}` metadata value is dropped, so it doesn't erase the bundle
+ *   marker. (Other keys are still merged by the base service, and a key can be
+ *   removed by setting it to an empty string, as for any product.)
+ * - Variants without an `id` would create a second variant, so the update is
+ *   rejected.
+ *
+ * Returns a copy; the input is not modified.
+ *
+ * @param update - one product's update data
+ * @param bundle - the existing bundle the update targets
+ */
+export function protectBundleUpdate<T extends Record<string, any>>(
+  update: T,
+  bundle: { id: string; title?: string | null }
+): T {
+  const variants = update.variants as { id?: string }[] | null | undefined
+
+  if (variants?.some((variant) => !variant.id)) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      `A variant can't be added to the bundle "${bundle.title}" (${bundle.id}). A bundle has exactly one variant.`
+    )
+  }
+
+  // `mergeMetadata` deletes a key whose value is "" (and a null value would
+  // overwrite it), so naming the marker key with an empty value removes it.
+  // The HTTP validator already blocks the key, this protects direct workflow
+  // calls too. Setting real components is how the bundle workflows write it.
+  const metadata = update.metadata as Record<string, unknown> | null | undefined
+  if (
+    metadata &&
+    typeof metadata === "object" &&
+    BUNDLE_METADATA_KEY in metadata &&
+    (metadata[BUNDLE_METADATA_KEY] === "" ||
+      metadata[BUNDLE_METADATA_KEY] === null ||
+      metadata[BUNDLE_METADATA_KEY] === undefined)
+  ) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      `The bundle marker of "${bundle.title}" (${bundle.id}) can't be removed. Delete the bundle instead.`
+    )
+  }
+
+  if (update.metadata !== undefined && isEmptyMetadataUpdate(update.metadata)) {
+    const { metadata: _dropped, ...rest } = update
+    return rest as T
+  }
+
+  return update
+}
+
+/**
+ * Throws when creating variants would give a bundle more than one variant.
+ * Creating a bundle itself is allowed: its product has no variants yet when its
+ * single variant is created.
+ *
+ * @param products - the products the variants are created for (with their
+ *   current variant count)
+ * @param newVariantsByProduct - how many variants the request adds per product
+ */
+export function assertBundleKeepsSingleVariant(
+  products: {
+    id: string
+    title?: string | null
+    metadata?: Record<string, unknown> | null
+    variantCount: number
+  }[],
+  newVariantsByProduct: Record<string, number>
+): void {
+  for (const product of products) {
+    if (!isBundleMetadata(product.metadata)) {
+      continue
+    }
+
+    if (product.variantCount + (newVariantsByProduct[product.id] ?? 0) > 1) {
+      throw new MedusaError(
+        MedusaError.Types.NOT_ALLOWED,
+        `A variant can't be added to the bundle "${product.title}" (${product.id}). A bundle has exactly one variant.`
+      )
+    }
+  }
+}
+
+/**
+ * Throws when any of the variants belongs to a bundle. Deleting a bundle's
+ * variant would leave a bundle without a variant; delete the bundle instead.
+ */
+export function assertNoBundleVariants(
+  variants: {
+    id: string
+    product?: {
+      id: string
+      title?: string | null
+      metadata?: Record<string, unknown> | null
+    } | null
+  }[]
+): void {
+  const bundles = new Map<string, string | null | undefined>()
+
+  for (const variant of variants) {
+    if (variant.product && isBundleMetadata(variant.product.metadata)) {
+      bundles.set(variant.product.id, variant.product.title)
+    }
+  }
+
+  if (bundles.size) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      `A variant of a bundle can't be deleted: ${[...bundles.entries()]
+        .map(([id, title]) => `"${title}" (${id})`)
+        .join(", ")}. Delete the bundle instead.`
+    )
+  }
+}
+
+/**
+ * Returns the id of a bundle's one variant. Throws if the bundle doesn't have
+ * exactly one, instead of silently picking the wrong variant.
+ */
+export function getBundleVariantId(product: {
+  id: string
+  variants?: { id: string }[] | null
+}): string {
+  if (product.variants?.length !== 1) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      `Bundle ${product.id} has ${
+        product.variants?.length ?? 0
+      } variants but must have exactly 1.`
+    )
+  }
+
+  return product.variants[0].id
+}

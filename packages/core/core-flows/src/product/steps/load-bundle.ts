@@ -7,6 +7,7 @@ import {
   BundleComponentInput,
   BundleInventoryLink,
   getBundleComponents,
+  getBundleVariantId,
 } from "../utils/bundle"
 
 export type LoadBundleStepInput = {
@@ -48,17 +49,22 @@ export const loadBundleStep = createStep(
     }
 
     const components = getBundleComponents(product.metadata)
-    const variant = product.variants?.[0]
-    if (!components || !variant) {
+    if (!components) {
       throw new MedusaError(
         MedusaError.Types.NOT_FOUND,
         `Product with id: ${input.id} is not a bundle`
       )
     }
 
+    // A bundle must have exactly one variant. Fail loudly instead of assuming
+    // the first one is the right one (older data or direct module calls could
+    // have given it more).
+    const variantId = getBundleVariantId(product as any)
+    const variant = product.variants!.find((v: any) => v.id === variantId)!
+
     return new StepResponse({
       product_id: product.id as string,
-      variant_id: variant.id as string,
+      variant_id: variantId,
       components: components as BundleComponentInput[],
       links: (variant.inventory_items ?? []).map((link: any) => ({
         inventory_item_id: link.inventory_item_id,
