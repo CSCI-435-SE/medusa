@@ -1,6 +1,6 @@
 # Mutation testing: Issue #62 -- Add a Low-Stock Inventory Monitoring Dashboard
 
-**PR(s):** #TODO  **Tool:** StrykerJS 10.1.1 with the Jest runner (`@stryker-mutator/core`, `@stryker-mutator/jest-runner`)  **Config:** [stryker.config.json](../../../packages/modules/inventory/stryker.config.json) and its build step [stryker-build.cjs](../../../packages/modules/inventory/stryker-build.cjs) (my own setup; no teammate setup existed)  **Command:** `cd packages/modules/inventory && npx stryker run` (Postgres running)
+**PR(s):** [#115](https://github.com/CSCI-435-SE/medusa/pull/115)  **Tool:** StrykerJS 10.1.1 with the Jest runner (`@stryker-mutator/core`, `@stryker-mutator/jest-runner`)  **Config:** [stryker.config.json](../../../packages/modules/inventory/stryker.config.json) and its build step [stryker-build.cjs](../../../packages/modules/inventory/stryker-build.cjs) (my own setup; no teammate setup existed)  **Command:** `cd packages/modules/inventory && npx stryker run` (Postgres running)
 **Reports:** [before](reports/62-njpiombino-before.json) · [after](reports/62-njpiombino-after.json)
 **Mutation score:** before 77.78% (56 of 72 killed) → after 84.72% (61 of 72 killed)
 
@@ -42,7 +42,7 @@ All 16 mutants that were not killed in the before run (13 survived, 3 had no cov
 
 ## New or strengthened test
 
-Commit: [TODO] · Tests, all in `packages/modules/inventory/integration-tests/__tests__/inventory-module-service.spec.ts`:
+Commit: [3c1a11d](https://github.com/CSCI-435-SE/medusa/commit/3c1a11d98eb2d48eed7a56c2e90160d9b2e098ba) · Tests, all in `packages/modules/inventory/integration-tests/__tests__/inventory-module-service.spec.ts`:
 - `Inventory Module Service › stock_status filter › limits the first page to take` kills #27 (inventory-module.ts:492).
 - `› stock_status filter › keeps the requested relations` kills #38 (inventory-module.ts:500).
 - `› stock_status filter without matching items › returns nothing when no item has the status` kills #14 and #15 (inventory-module.ts:477).
@@ -75,4 +75,4 @@ All five show as `Killed` in the after report.
    - The scores in this doc were recomputed from the committed JSON reports.
    - The equivalence claims were checked by reading the code paths described in the table.
 
-   Verified by me: TODO (manual review notes).
+   Verified by me: I reran `npx stryker run` myself with this config, and I reviewed this whole document: the setup notes, every row of the surviving-mutants table, the new tests and the answers above. I also checked the feature manually in the admin inventory page.
