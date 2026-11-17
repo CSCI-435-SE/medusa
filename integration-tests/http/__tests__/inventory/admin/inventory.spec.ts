@@ -1081,6 +1081,130 @@ medusaIntegrationTestRunner({
         )
       })
 
+      describe("GET /admin/inventory-items?stock_status", () => {
+        let lowItem
+        let zeroLevelItem
+
+        const createItem = async (sku, stocked, extra = {}) => {
+          const item = (
+            await api.post(
+              `/admin/inventory-items`,
+              { sku, ...extra },
+              adminHeaders
+            )
+          ).data.inventory_item
+          await api.post(
+            `/admin/inventory-items/${item.id}/location-levels`,
+            { location_id: stockLocation1.id, stocked_quantity: stocked },
+            adminHeaders
+          )
+          return item
+        }
+
+        const list = (query) =>
+          api.get(`/admin/inventory-items?${query}`, adminHeaders)
+
+        // Available = stocked - reserved, summed over locations.
+        // Out of stock: available <= 0. Low stock: 0 < available <= threshold.
+        beforeEach(async () => {
+          // 12 stocked - 5 reserved = 7: low only because of the reservation
+          await api.post(
+            `/admin/inventory-items/${inventoryItem1.id}/location-levels`,
+            { location_id: stockLocation1.id, stocked_quantity: 12 },
+            adminHeaders
+          )
+          await api.post(
+            `/admin/reservations`,
+            {
+              inventory_item_id: inventoryItem1.id,
+              location_id: stockLocation1.id,
+              quantity: 5,
+            },
+            adminHeaders
+          )
+          // inventoryItem2 has no location levels: out of stock
+          lowItem = await createItem("low", 3)
+          zeroLevelItem = await createItem("zero", 0)
+          await createItem("healthy", 50)
+          await createItem("threshold-off", 2, { low_stock_threshold: 0 })
+        })
+
+        it("should list low stock items, lowest available quantity first", async () => {
+          const response = await list("stock_status=low_stock")
+
+          expect(response.data.count).toEqual(2)
+          expect(response.data.inventory_items.map((i) => i.id)).toEqual([
+            lowItem.id,
+            inventoryItem1.id,
+          ])
+        })
+
+        it("should list out of stock items, including items without levels", async () => {
+          const response = await list("stock_status=out_of_stock")
+
+          expect(response.data.count).toEqual(2)
+          expect(response.data.inventory_items.map((i) => i.id).sort()).toEqual(
+            [inventoryItem2.id, zeroLevelItem.id].sort()
+          )
+        })
+
+        it("should list both statuses with out of stock items first", async () => {
+          const response = await list(
+            "stock_status[]=low_stock&stock_status[]=out_of_stock"
+          )
+          const ids = response.data.inventory_items.map((i) => i.id)
+
+          expect(response.data.count).toEqual(4)
+          expect(ids.slice(0, 2).sort()).toEqual(
+            [inventoryItem2.id, zeroLevelItem.id].sort()
+          )
+          expect(ids.slice(2)).toEqual([lowItem.id, inventoryItem1.id])
+        })
+
+        it("should paginate in quantity order and count all matches", async () => {
+          const response = await list("stock_status=low_stock&limit=1&offset=1")
+
+          expect(response.data.count).toEqual(2)
+          expect(response.data.inventory_items.map((i) => i.id)).toEqual([
+            inventoryItem1.id,
+          ])
+        })
+
+        it("should combine with other filters", async () => {
+          const response = await list("stock_status=low_stock&sku=12345")
+
+          expect(response.data.count).toEqual(1)
+          expect(response.data.inventory_items[0]).toEqual(
+            expect.objectContaining({
+              id: inventoryItem1.id,
+              stocked_quantity: 12,
+              reserved_quantity: 5,
+              low_stock_threshold: 10,
+            })
+          )
+        })
+
+        it("should return an empty list when nothing matches", async () => {
+          const response = await list("stock_status=low_stock&sku=missing")
+
+          expect(response.status).toEqual(200)
+          expect(response.data.inventory_items).toEqual([])
+          expect(response.data.count).toEqual(0)
+        })
+
+        it("should not change the list when the filter is not set", async () => {
+          const response = await list("limit=50")
+
+          expect(response.data.count).toEqual(6)
+        })
+
+        it("should reject an unknown stock status", async () => {
+          const error = await list("stock_status=in_stock").catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
+        })
+      })
+
       describe("DELETE /admin/inventory-items/:id", () => {
         it("should throw if inventory item with reservations is being removed", async () => {
           await api.post(

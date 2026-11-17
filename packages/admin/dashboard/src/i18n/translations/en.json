@@ -1002,6 +1002,7 @@
     "outOfStock": "Out of stock",
     "lowStockThreshold": "Low stock threshold",
     "lowStockThresholdHint": "Show a low stock warning when the available quantity is at or below this number. Set to 0 to turn the warning off.",
+    "stockStatus": "Stock status",
     "create": {
       "title": "Create Inventory Item",
       "details": "Details",

@@ -1,5 +1,6 @@
 import { FindParams, SelectParams } from "../../common"
 import { BaseFilterable, OperatorMap } from "../../../dal"
+import { InventoryStockStatus } from "../../../inventory"
 
 export interface AdminInventoryItemsParams
   extends FindParams,
@@ -57,6 +58,12 @@ export interface AdminInventoryItemsParams
    * that have inventory levels associated with the locations.
    */
   location_levels?: { location_id?: string | string[] }
+  /**
+   * Filter by stock status, computed from the item's total available
+   * quantity and its `low_stock_threshold`. When set, items are sorted
+   * by available quantity, lowest first.
+   */
+  stock_status?: InventoryStockStatus | InventoryStockStatus[]
 }
 
 export interface AdminGetInventoryItemParams extends SelectParams {}

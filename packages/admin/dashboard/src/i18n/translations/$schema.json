@@ -3932,6 +3932,9 @@
         "lowStockThresholdHint": {
           "type": "string"
         },
+        "stockStatus": {
+          "type": "string"
+        },
         "create": {
           "type": "object",
           "properties": {
@@ -4230,6 +4233,7 @@
         "outOfStock",
         "lowStockThreshold",
         "lowStockThresholdHint",
+        "stockStatus",
         "create",
         "reservation",
         "adjustInventory",

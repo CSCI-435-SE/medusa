@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Issue #62 mutation testing (D6). Run from this directory with Postgres up: npx stryker run. Mutates only the lines added for #62. The module tests load dist/, so the instrumented source is rebuilt before testing; inPlace because the sandbox copy breaks tsconfig's relative extends. Concurrency 1 because every test run uses the same test database name. coverageAnalysis is 'all' because moduleIntegrationTestRunner wraps suites in describe(\"\"), so perTest coverage ids never match Jest's test names and every mutant shows as uncovered.",
+  "packageManager": "yarn",
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "jest.config.js",
+    "config": {
+      "testMatch": [
+        "<rootDir>/integration-tests/__tests__/**/*.spec.ts"
+      ]
+    },
+    "enableFindRelatedTests": false
+  },
+  "mutate": [
+    "src/services/inventory-module.ts:443-553"
+  ],
+  "buildCommand": "node stryker-build.cjs",
+  "inPlace": true,
+  "concurrency": 1,
+  "coverageAnalysis": "all",
+  "timeoutMS": 60000,
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json",
+    "html"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  },
+  "tempDirName": ".stryker-tmp"
+}

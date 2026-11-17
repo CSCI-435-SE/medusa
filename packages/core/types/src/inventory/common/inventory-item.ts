@@ -141,4 +141,16 @@ export interface FilterableInventoryItemProps {
    * Filter inventory items by whether they require shipping.
    */
   requires_shipping?: boolean
+
+  /**
+   * Filter inventory items by stock status, computed from the total available
+   * quantity across locations and the item's `low_stock_threshold`. When set,
+   * results are sorted by available quantity, lowest first.
+   */
+  stock_status?: InventoryStockStatus | InventoryStockStatus[]
 }
+
+/**
+ * The stock status of an inventory item.
+ */
+export type InventoryStockStatus = "low_stock" | "out_of_stock"

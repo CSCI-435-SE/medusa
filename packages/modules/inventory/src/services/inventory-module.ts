@@ -2,6 +2,7 @@ import {
   BigNumberInput,
   Context,
   DAL,
+  FindConfig,
   IInventoryService,
   InferEntityType,
   InternalModuleDeclaration,
@@ -26,6 +27,7 @@ import {
   MedusaService,
   partitionArray,
 } from "@medusajs/framework/utils"
+import { SqlEntityManager } from "@medusajs/framework/mikro-orm/postgresql"
 import { InventoryItem, InventoryLevel, ReservationItem } from "@models"
 import { joinerConfig } from "../joiner-config"
 import { applyEntityHooks } from "../utils/apply-decorators"
@@ -436,6 +438,117 @@ export default class InventoryModuleService
     @MedusaContext() context: Context = {}
   ): Promise<InferEntityType<typeof InventoryItem>[]> {
     return await this.inventoryItemService_.update(input, context)
+  }
+
+  @InjectManager()
+  // @ts-expect-error
+  async listInventoryItems(
+    filters: InventoryTypes.FilterableInventoryItemProps = {},
+    config: FindConfig<InventoryTypes.InventoryItemDTO> = {},
+    @MedusaContext() context: Context = {}
+  ): Promise<InventoryTypes.InventoryItemDTO[]> {
+    if (!filters.stock_status) {
+      return await super.listInventoryItems(filters, config, context)
+    }
+
+    const [items] = await this.listAndCountInventoryItems(
+      filters,
+      config,
+      context
+    )
+    return items
+  }
+
+  @InjectManager()
+  // @ts-expect-error
+  async listAndCountInventoryItems(
+    filters: InventoryTypes.FilterableInventoryItemProps = {},
+    config: FindConfig<InventoryTypes.InventoryItemDTO> = {},
+    @MedusaContext() context: Context = {}
+  ): Promise<[InventoryTypes.InventoryItemDTO[], number]> {
+    const { stock_status, ...otherFilters } = filters
+
+    if (!stock_status) {
+      return await super.listAndCountInventoryItems(filters, config, context)
+    }
+
+    const sortedIds = await this.listIdsByStockStatus_(stock_status, context)
+    if (!sortedIds.length) {
+      return [[], 0]
+    }
+
+    // shortcut: loads every matching id to keep the quantity order across pages, move the sort into SQL if catalogs reach tens of thousands of low-stock items
+    const matching = await this.inventoryItemService_.list(
+      { $and: [otherFilters, { id: sortedIds }] },
+      { select: ["id"] },
+      context
+    )
+    const matchingIds = new Set(matching.map((item) => item.id))
+    const ids = sortedIds.filter((id) => matchingIds.has(id))
+
+    const skip = config.skip ?? 0
+    const pageIds = ids.slice(
+      skip,
+      config.take == null ? undefined : skip + config.take
+    )
+    if (!pageIds.length) {
+      return [[], ids.length]
+    }
+
+    const items = await super.listInventoryItems(
+      { id: pageIds },
+      { ...config, skip: undefined, take: undefined, order: undefined },
+      context
+    )
+    const itemsById = new Map(items.map((item) => [item.id, item]))
+
+    return [pageIds.map((id) => itemsById.get(id)!), ids.length]
+  }
+
+  /**
+   * Returns the ids of inventory items with the given stock statuses, sorted by
+   * total available quantity (stocked - reserved), lowest first. Mirrors the
+   * dashboard's `getStockStatus`.
+   */
+  protected async listIdsByStockStatus_(
+    stockStatus:
+      | InventoryTypes.InventoryStockStatus
+      | InventoryTypes.InventoryStockStatus[],
+    context: Context
+  ): Promise<string[]> {
+    const available =
+      "COALESCE(SUM(il.stocked_quantity), 0) - COALESCE(SUM(il.reserved_quantity), 0)"
+    const conditions: Record<InventoryTypes.InventoryStockStatus, string> = {
+      out_of_stock: `${available} <= 0`,
+      low_stock: `${available} > 0 AND ${available} <= ii.low_stock_threshold`,
+    }
+
+    const statuses = Array.isArray(stockStatus) ? stockStatus : [stockStatus]
+    const invalid = statuses.filter((status) => !(status in conditions))
+    if (invalid.length) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `Invalid stock status: ${invalid.join(", ")}`
+      )
+    }
+
+    const manager = (context.transactionManager ??
+      context.manager) as SqlEntityManager
+    const knex = manager.getTransactionContext() ?? manager.getKnex()
+
+    const rows: { id: string }[] = await knex("inventory_item as ii")
+      .leftJoin("inventory_level as il", (join) =>
+        join.on("il.inventory_item_id", "ii.id").andOnNull("il.deleted_at")
+      )
+      .whereNull("ii.deleted_at")
+      .groupBy("ii.id")
+      .havingRaw(
+        statuses.map((status) => `(${conditions[status]})`).join(" OR ")
+      )
+      .orderByRaw(`${available} ASC, ii.id ASC`)
+      .select("ii.id")
+
+    return rows.map((row) => row.id)
   }
 
   @InjectManager()

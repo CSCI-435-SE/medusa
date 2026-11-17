@@ -34,6 +34,8 @@ export const AdminGetInventoryItemsParamsFields = z.object({
     .optional(),
 })
 
+const StockStatus = z.enum(["low_stock", "out_of_stock"])
+
 export type AdminGetInventoryItemsParamsType = z.infer<
   typeof AdminGetInventoryItemsParams
 >
@@ -43,6 +45,12 @@ export const AdminGetInventoryItemsParams = createFindParams({
 })
   .merge(AdminGetInventoryItemsParamsFields)
   .merge(applyAndAndOrOperators(AdminGetInventoryItemsParamsFields))
+  // Kept out of the fields above so it can't be nested in $and / $or
+  .merge(
+    z.object({
+      stock_status: z.union([StockStatus, z.array(StockStatus)]).optional(),
+    })
+  )
   .strict()
 
 export type AdminGetInventoryLocationLevelParamsType = z.infer<
