@@ -1,6 +1,6 @@
 # Mutation testing: Issue #113 -- Handle bundles at checkout and allow returning a single item from a bundle
 
-**PR(s):** [#PR_NUMBER](https://github.com/CSCI-435-SE/medusa/pull/PR_NUMBER)  **Tool:** StrykerJS 10.1.1 with the Jest runner (`@stryker-mutator/core`, `@stryker-mutator/jest-runner`)  **Config:** [stryker.config.json](../../../packages/core/core-flows/stryker.config.json) (based on my own #62 setup, simplified for plain unit tests)  **Command:** `cd packages/core/core-flows && npx stryker run` (no database needed)
+**PR(s):** [#117](https://github.com/CSCI-435-SE/medusa/pull/117)  **Tool:** StrykerJS 10.1.1 with the Jest runner (`@stryker-mutator/core`, `@stryker-mutator/jest-runner`)  **Config:** [stryker.config.json](../../../packages/core/core-flows/stryker.config.json) (based on my own #62 setup, simplified for plain unit tests)  **Command:** `cd packages/core/core-flows && npx stryker run` (no database needed)
 **Reports:** [before](reports/113-njpiombino-before.json) · [after](reports/113-njpiombino-after.json)
 **Mutation score:** before 89.75% (324 of 361 killed) → after 96.95% (350 of 361 killed)
 
@@ -62,7 +62,7 @@ All 37 mutants that survived the before run (none had no coverage). Line numbers
 
 ## New or strengthened test
 
-Commit: [COMMIT_HASH](https://github.com/CSCI-435-SE/medusa/commit/COMMIT_HASH) · Tests in `packages/core/core-flows/src/order/utils/__tests__/bundle-refunds.spec.ts`:
+Commit: [d42aab0](https://github.com/CSCI-435-SE/medusa/commit/d42aab0d0b77057ac5cd833170af25278bc8390a) · Tests in `packages/core/core-flows/src/order/utils/__tests__/bundle-refunds.spec.ts`:
 - `computeBundleRefundShares › gives a free component no share when the others have prices (AC 7)` kills #154 (bundle-refunds.ts:114).
 - `computeBundleRefundShares › gives the leftover cent to the larger remainder, not the larger share (AC 9)` kills #168 and #170 (bundle-refunds.ts:124).
 - `prepareBundleReturnItems › returns every unit of a component that a bundle holds several of` kills #308 (:406).
@@ -115,4 +115,4 @@ All 26 show as `Killed` in the after report.
    - The "before" run used the test files with only the 14 new tests removed and the strengthened assertion restored to its earlier, weaker form.
    - After each run, both files were checked to contain no instrumentation (`stryNS`).
 
-   Verified by me: VERIFIED_BY_ME
+   Verified by me: I reran `npx stryker run` myself with this config, and I reviewed this whole document: the setup notes, every row of the surviving-mutants table, the new tests and the answers above.
