@@ -136,7 +136,7 @@ medusaIntegrationTestRunner({
     const createBundle = async (body) =>
       (
         await api.post(
-          "/admin/bundles?fields=*variants,*variants.prices,*variants.inventory_items,*categories,*images,metadata",
+          "/admin/bundles?fields=id,title,description,*variants,*variants.prices,*variants.inventory_items,*categories,*images,metadata",
           body,
           adminHeaders
         )
@@ -323,7 +323,7 @@ medusaIntegrationTestRunner({
         const parts = await createCameraKitParts()
 
         const response = await api.post(
-          "/admin/bundles?fields=*variants,*variants.prices,*variants.inventory_items,*categories,*images,metadata",
+          "/admin/bundles?fields=id,title,description,*variants,*variants.prices,*variants.inventory_items,*categories,*images,metadata",
           bundleBody(parts, { title: "Camera kit" }),
           adminHeaders
         )
@@ -378,7 +378,7 @@ medusaIntegrationTestRunner({
         const bundle = await createBundle(bundleBody(parts))
 
         const response = await api.post(
-          `/admin/bundles/${bundle.id}?fields=*variants,*variants.prices,*variants.inventory_items,metadata`,
+          `/admin/bundles/${bundle.id}?fields=id,title,description,*variants,*variants.prices,*variants.inventory_items,metadata`,
           {
             title: "Camera kit v2",
             // swap the bag for a tripod, and take 2 lenses
@@ -591,7 +591,10 @@ medusaIntegrationTestRunner({
     describe("AC 7: invalid requests are rejected with a clear error", () => {
       let parts
 
-      beforeAll(async () => {
+      // The test runner restores the database to its snapshot before every
+      // test, so data made in a beforeAll here would only survive the first
+      // test. Create the components fresh for each test instead.
+      beforeEach(async () => {
         parts = await createCameraKitParts()
       })
 
