@@ -7,7 +7,9 @@ import {
 } from "@medusajs/framework/utils"
 import { wrapVariantsWithInventoryQuantityForSalesChannel } from "../../../utils/middlewares"
 import {
+  applyBundleField,
   filterOutInternalProductCategories,
+  prepareBundleFields,
   RequestWithContext,
   wrapProductsWithTaxPrices,
 } from "../helpers"
@@ -46,6 +48,9 @@ export const GET = async (
     req.queryConfig.fields.push("categories.is_internal")
   }
 
+  // Select metadata internally so bundles can be marked (issue #112).
+  const bundleFields = prepareBundleFields(req.queryConfig.fields)
+
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
   const { data: products } = await query.graph(
@@ -80,5 +85,5 @@ export const GET = async (
   }
 
   await wrapProductsWithTaxPrices(req, [product])
-  res.json({ product })
+  res.json({ product: applyBundleField([product], bundleFields)[0] })
 }

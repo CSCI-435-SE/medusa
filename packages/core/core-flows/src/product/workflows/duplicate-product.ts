@@ -11,6 +11,7 @@ import {
   transform,
 } from "@medusajs/framework/workflows-sdk"
 import { useQueryGraphStep } from "../../common"
+import { isBundleMetadata } from "../utils/bundle"
 import { createProductsWorkflow } from "./create-products"
 
 /**
@@ -94,7 +95,7 @@ export interface ValidateDuplicateProductStepInput {
   /**
    * The products matching the requested ID (empty if it does not exist).
    */
-  source: { id: string }[]
+  source: { id: string; metadata?: Record<string, unknown> | null }[]
   /**
    * The products already using the requested handle.
    */
@@ -120,6 +121,16 @@ export const validateDuplicateProductStep = createStep(
       throw new MedusaError(
         MedusaError.Types.NOT_FOUND,
         "Product to duplicate was not found"
+      )
+    }
+
+    // Issue #112: a copy would keep the bundle marker in its metadata but not
+    // the component inventory links, which would produce a broken bundle.
+    // Create a new bundle with the bundle API instead.
+    if (isBundleMetadata(source.metadata)) {
+      throw new MedusaError(
+        MedusaError.Types.NOT_ALLOWED,
+        "A bundle can't be duplicated. Create a new bundle instead."
       )
     }
 

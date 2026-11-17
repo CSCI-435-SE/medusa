@@ -44,6 +44,30 @@ export interface StoreProduct
    * The product's images.
    */
   images: StoreProductImage[] | null
+  /**
+   * The bundle details. It's only set when the product is a bundle, and
+   * lists the variants (and quantities) the bundle is made of.
+   */
+  bundle?: StoreProductBundle
+}
+
+/**
+ * The details of a product bundle.
+ */
+export interface StoreProductBundle {
+  /**
+   * The variants the bundle is made of.
+   */
+  components: {
+    /**
+     * The ID of the component's variant.
+     */
+    variant_id: string
+    /**
+     * How many of the variant are in one bundle.
+     */
+    quantity: number
+  }[]
 }
 export interface StoreProductVariant
   extends Omit<BaseProductVariant, "product" | "options"> {
