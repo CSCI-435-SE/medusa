@@ -9,14 +9,18 @@ import { InventoryActions } from "./inventory-actions"
 
 const columnHelper = createColumnHelper<AdminInventoryItem>()
 
+// Quantities are null when the item has no location levels
+const getAvailableQuantity = (
+  item: Pick<AdminInventoryItem, "stocked_quantity" | "reserved_quantity">
+) => (item.stocked_quantity ?? 0) - (item.reserved_quantity ?? 0)
+
 export const getStockStatus = (
   item: Pick<
     AdminInventoryItem,
     "stocked_quantity" | "reserved_quantity" | "low_stock_threshold"
   >
 ): "out_of_stock" | "low_stock" | null => {
-  // Quantities are null when the item has no location levels
-  const available = (item.stocked_quantity ?? 0) - (item.reserved_quantity ?? 0)
+  const available = getAvailableQuantity(item)
 
   if (available <= 0) {
     return "out_of_stock"
@@ -137,6 +141,25 @@ export const useInventoryTableColumns = () => {
             </div>
           )
         },
+      }),
+      columnHelper.display({
+        id: "available_quantity",
+        header: t("inventory.available"),
+        cell: ({ row }) => (
+          <div className="flex size-full items-center overflow-hidden">
+            <span className="truncate">
+              {getAvailableQuantity(row.original)}
+            </span>
+          </div>
+        ),
+      }),
+      columnHelper.accessor("low_stock_threshold", {
+        header: t("inventory.lowStockThreshold"),
+        cell: ({ getValue }) => (
+          <div className="flex size-full items-center overflow-hidden">
+            <span className="truncate">{getValue()}</span>
+          </div>
+        ),
       }),
       columnHelper.display({
         id: "actions",

@@ -1,4 +1,8 @@
-import { IInventoryService, InventoryItemDTO, ReservationItemDTO } from "@medusajs/framework/types"
+import {
+  IInventoryService,
+  InventoryItemDTO,
+  ReservationItemDTO,
+} from "@medusajs/framework/types"
 import {
   BigNumber,
   CommonEvents,
@@ -20,7 +24,7 @@ moduleIntegrationTestRunner<IInventoryService>({
   injectedDependencies: {
     [Modules.EVENT_BUS]: new MockEventBusService(),
   },
-  testSuite: ({ service }) => {
+  testSuite: ({ service, MikroOrmWrapper }) => {
     describe("Inventory Module Service", () => {
       it(`should export the appropriate linkable configuration`, () => {
         const linkable = Module(Modules.INVENTORY, {
@@ -625,8 +629,10 @@ moduleIntegrationTestRunner<IInventoryService>({
         })
 
         it("should adjust inventory levels accordingly when removing reservations by id", async () => {
-          const reservationItem = (await service.listReservationItems({ location_id: "location-1"}))[0]
-          
+          const reservationItem = (
+            await service.listReservationItems({ location_id: "location-1" })
+          )[0]
+
           const inventoryLevelBefore =
             await service.retrieveInventoryLevelByItemAndLocation(
               inventoryItem.id,
@@ -1243,6 +1249,225 @@ moduleIntegrationTestRunner<IInventoryService>({
           )
 
           expect(reservedQuantity).toBeFalsy()
+        })
+      })
+
+      describe("stock_status filter", () => {
+        let reservedItem: InventoryItemDTO
+        let noLevelsItem: InventoryItemDTO
+        let lowItem: InventoryItemDTO
+        let zeroItem: InventoryItemDTO
+
+        const createWithStock = async (
+          sku: string,
+          stocked: number,
+          extra: Record<string, unknown> = {}
+        ) => {
+          const item = await service.createInventoryItems({ sku, ...extra })
+          await service.createInventoryLevels({
+            inventory_item_id: item.id,
+            location_id: "location-1",
+            stocked_quantity: stocked,
+          })
+          return item
+        }
+
+        // Available = stocked - reserved, summed over locations.
+        // Out of stock: available <= 0. Low stock: 0 < available <= threshold.
+        beforeEach(async () => {
+          // 7 + 5 stocked - 5 reserved = 7: low only because of the reservation
+          reservedItem = await createWithStock("reserved", 7)
+          await service.createInventoryLevels({
+            inventory_item_id: reservedItem.id,
+            location_id: "location-2",
+            stocked_quantity: 5,
+          })
+          await service.createReservationItems({
+            inventory_item_id: reservedItem.id,
+            location_id: "location-2",
+            quantity: 5,
+          })
+          noLevelsItem = await service.createInventoryItems({ sku: "none" })
+          lowItem = await createWithStock("low", 3)
+          zeroItem = await createWithStock("zero", 0)
+          await createWithStock("healthy", 50)
+          await createWithStock("threshold-off", 2, { low_stock_threshold: 0 })
+        })
+
+        const ids = (items: InventoryItemDTO[]) => items.map((i) => i.id)
+
+        it("lists low stock items, lowest available quantity first", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: "low_stock",
+          })
+
+          expect(count).toEqual(2)
+          expect(ids(items)).toEqual([lowItem.id, reservedItem.id])
+        })
+
+        it("lists out of stock items, including items without levels", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: ["out_of_stock"],
+          })
+
+          expect(count).toEqual(2)
+          expect(ids(items).sort()).toEqual(
+            [noLevelsItem.id, zeroItem.id].sort()
+          )
+        })
+
+        it("lists both statuses with out of stock items first", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: ["low_stock", "out_of_stock"],
+          })
+
+          expect(count).toEqual(4)
+          expect(ids(items).slice(0, 2).sort()).toEqual(
+            [noLevelsItem.id, zeroItem.id].sort()
+          )
+          expect(ids(items).slice(2)).toEqual([lowItem.id, reservedItem.id])
+        })
+
+        it("paginates in quantity order and counts all matches", async () => {
+          const [items, count] = await service.listAndCountInventoryItems(
+            { stock_status: "low_stock" },
+            { skip: 1, take: 1 }
+          )
+
+          expect(count).toEqual(2)
+          expect(ids(items)).toEqual([reservedItem.id])
+        })
+
+        it("limits the first page to take", async () => {
+          const [items, count] = await service.listAndCountInventoryItems(
+            { stock_status: "low_stock" },
+            { take: 1 }
+          )
+
+          expect(count).toEqual(2)
+          expect(ids(items)).toEqual([lowItem.id])
+        })
+
+        it("keeps the requested relations", async () => {
+          const [items] = await service.listAndCountInventoryItems(
+            { stock_status: "low_stock", sku: "reserved" },
+            { relations: ["location_levels"] }
+          )
+
+          expect(items[0].location_levels).toHaveLength(2)
+        })
+
+        it("combines with other filters", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: "low_stock",
+            sku: "reserved",
+          })
+
+          expect(count).toEqual(1)
+          expect(ids(items)).toEqual([reservedItem.id])
+        })
+
+        it("returns nothing when no items match", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: "low_stock",
+            sku: "missing",
+          })
+
+          expect(items).toEqual([])
+          expect(count).toEqual(0)
+        })
+
+        it("applies the filter in listInventoryItems too", async () => {
+          const items = await service.listInventoryItems({
+            stock_status: "low_stock",
+          })
+
+          expect(ids(items)).toEqual([lowItem.id, reservedItem.id])
+        })
+
+        it("does not change results when the filter is not set", async () => {
+          const [, count] = await service.listAndCountInventoryItems({})
+
+          expect(count).toEqual(6)
+        })
+
+        it("rejects an unknown stock status", async () => {
+          const error = await service
+            .listAndCountInventoryItems({ stock_status: "in_stock" as any })
+            .catch((e) => e)
+
+          expect(error.message).toEqual("Invalid stock status: in_stock")
+        })
+
+        it("names every unknown stock status", async () => {
+          const error = await service
+            .listAndCountInventoryItems({
+              stock_status: ["in_stock", "low_stock", "unknown"] as any,
+            })
+            .catch((e) => e)
+
+          expect(error.message).toEqual(
+            "Invalid stock status: in_stock, unknown"
+          )
+        })
+      })
+
+      describe("stock_status filter without matching items", () => {
+        it("returns nothing when no item has the status", async () => {
+          const item = await service.createInventoryItems({ sku: "healthy" })
+          await service.createInventoryLevels({
+            inventory_item_id: item.id,
+            location_id: "location-1",
+            stocked_quantity: 50,
+          })
+
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: ["low_stock", "out_of_stock"],
+          })
+
+          expect(items).toEqual([])
+          expect(count).toEqual(0)
+        })
+      })
+
+      describe("stock_status filter with more ids than one query allows", () => {
+        // Postgres allows at most 65535 bound parameters per query
+        const total = 70000
+
+        beforeEach(async () => {
+          // Items without location levels are out of stock
+          await MikroOrmWrapper.forkManager().execute(
+            `INSERT INTO inventory_item (id, sku) SELECT 'iitem_bulk_' || g, 'bulk-' || g FROM generate_series(1, ${total}) g`
+          )
+        })
+
+        it("counts and pages all matches without other filters", async () => {
+          const [items, count] = await service.listAndCountInventoryItems(
+            { stock_status: "out_of_stock" },
+            { take: 2 }
+          )
+
+          expect(count).toEqual(total)
+          expect(items).toHaveLength(2)
+        })
+
+        it("combines with other filters", async () => {
+          const [items, count] = await service.listAndCountInventoryItems({
+            stock_status: "out_of_stock",
+            sku: "bulk-70000",
+          })
+
+          expect(count).toEqual(1)
+          expect(items[0].id).toEqual("iitem_bulk_70000")
+        })
+
+        it("lists every match when no page size is given", async () => {
+          const items = await service.listInventoryItems(
+            { stock_status: "out_of_stock" },
+            { select: ["id"] }
+          )
+
+          expect(items).toHaveLength(total)
         })
       })
     })

@@ -26,6 +26,16 @@ export const useInventoryTableFilters = () => {
   }
 
   filters.push({
+    type: "select",
+    options: [
+      { label: t("inventory.lowStock"), value: "low_stock" },
+      { label: t("inventory.outOfStock"), value: "out_of_stock" },
+    ],
+    key: "stock_status",
+    label: t("inventory.stockStatus"),
+  })
+
+  filters.push({
     type: "string",
     key: "material",
     label: t("fields.material"),

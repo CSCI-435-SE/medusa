@@ -27,6 +27,7 @@ export const useInventoryTableQuery = ({
       "width",
       "length",
       "height",
+      "stock_status",
     ],
     prefix
   )
@@ -61,6 +62,11 @@ export const useInventoryTableQuery = ({
       location_id: params.location_id || [],
     },
     id: params.id ? params.id.split(",") : undefined,
+    stock_status: params.stock_status
+      ? (params.stock_status.split(
+          ","
+        ) as HttpTypes.AdminInventoryItemsParams["stock_status"])
+      : undefined,
   }
 
   return {
