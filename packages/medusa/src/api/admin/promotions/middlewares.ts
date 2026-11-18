@@ -86,6 +86,22 @@ export const adminPromotionRoutesMiddlewares: MiddlewareRoute[] = [
   },
   {
     method: ["POST"],
+    matcher: "/admin/promotions/export",
+    middlewares: [
+      validateAndTransformQuery(
+        AdminGetPromotionsParams,
+        QueryConfig.listTransformQueryConfig
+      ),
+    ],
+    policies: [
+      {
+        resource: Entities.promotion,
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
     matcher: "/admin/promotions/import",
     middlewares: [upload.single("file")],
     policies: [

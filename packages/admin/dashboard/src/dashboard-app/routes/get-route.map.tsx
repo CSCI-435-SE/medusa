@@ -524,6 +524,11 @@ export function getRouteMap({
                       lazy: () =>
                         import("../../routes/promotions/promotion-import"),
                     },
+                    {
+                      path: "export",
+                      lazy: () =>
+                        import("../../routes/promotions/promotion-export"),
+                    },
                   ],
                 },
                 {

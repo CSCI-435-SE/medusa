@@ -78,3 +78,10 @@ export interface AdminImportPromotionsResponse {
    */
   created: number
 }
+
+export interface AdminExportPromotionsResponse {
+  /**
+   * The ID of the export promotions workflow's transaction.
+   */
+  transaction_id: string
+}

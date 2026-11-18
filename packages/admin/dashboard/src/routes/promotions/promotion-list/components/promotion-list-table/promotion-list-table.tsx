@@ -4,7 +4,13 @@ import { Button, Container, Heading, usePrompt } from "@medusajs/ui"
 import { createColumnHelper } from "@tanstack/react-table"
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { Link, Outlet, useLoaderData, useNavigate } from "react-router-dom"
+import {
+  Link,
+  Outlet,
+  useLoaderData,
+  useLocation,
+  useNavigate,
+} from "react-router-dom"
 
 import { keepPreviousData } from "@tanstack/react-query"
 import { ActionMenu } from "../../../../../components/common/action-menu"
@@ -23,6 +29,7 @@ const PAGE_SIZE = 20
 
 export const PromotionListTable = () => {
   const { t } = useTranslation()
+  const location = useLocation()
   const initialData = useLoaderData() as Awaited<
     ReturnType<ReturnType<typeof promotionsLoader>>
   >
@@ -58,6 +65,11 @@ export const PromotionListTable = () => {
         <Heading level="h1">{t("promotions.domain")}</Heading>
 
         <div className="flex items-center gap-x-2">
+          {/* The export reads the list's filters and search from the query
+          string, so the link carries them over to the drawer. */}
+          <Button size="small" variant="secondary" asChild>
+            <Link to={`export${location.search}`}>{t("actions.export")}</Link>
+          </Button>
           <Button size="small" variant="secondary" asChild>
             <Link to="import">{t("actions.import")}</Link>
           </Button>

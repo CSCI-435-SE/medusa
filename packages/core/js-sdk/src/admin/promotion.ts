@@ -234,6 +234,45 @@ export class Promotion {
   }
 
   /**
+   * This method starts a promotion export process to retrieve a CSV of exported promotions.
+   * It sends a request to the Export Promotions API route.
+   *
+   * The file uses the same columns as the promotion import, so an exported file
+   * can be imported again.
+   *
+   * You'll receive in the response the transaction ID of the workflow generating the CSV file.
+   * To check the status of the execution, send a `GET` request to
+   * `/admin/workflows-executions/export-promotions/:transaction-id`.
+   *
+   * Once the execution finishes successfully, a notification is created for the export.
+   * You can retrieve the notifications using the `/admin/notification` API route to
+   * retrieve the file's download URL.
+   *
+   * @param query - Filters to specify which promotions to export.
+   * @param headers - Headers to pass in the request.
+   * @returns The export's details.
+   *
+   * @example
+   * sdk.admin.promotion.export()
+   * .then(({ transaction_id }) => {
+   *   console.log(transaction_id)
+   * })
+   */
+  async export(
+    query?: HttpTypes.AdminGetPromotionsParams,
+    headers?: ClientHeaders
+  ) {
+    return await this.client.fetch<HttpTypes.AdminExportPromotionsResponse>(
+      `/admin/promotions/export`,
+      {
+        method: "POST",
+        headers,
+        query,
+      }
+    )
+  }
+
+  /**
    * This method updates a promotion. It sends a request to the
    * [Update Promotion](https://docs.medusajs.com/api/admin#promotions_postpromotionsid)
    * API route.
