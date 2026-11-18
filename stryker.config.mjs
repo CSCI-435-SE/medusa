@@ -42,8 +42,17 @@ export default {
   // large speedup. Jest supports it natively.
   coverageAnalysis: "perTest",
 
-  reporters: ["clear-text", "progress", "html"],
+  // "json" writes the machine-readable report required as D6 evidence. The
+  // default path below is a scratch location; for the graded runs, set
+  // STRYKER_JSON_REPORT (the CLI cannot override nested options) so the file
+  // lands in the committed reports folder, e.g.:
+  //   STRYKER_JSON_REPORT=../../../docs/sprint3/mutation/reports/112-lefecko-before.json
+  reporters: ["clear-text", "progress", "html", "json"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
+  jsonReporter: {
+    fileName:
+      process.env.STRYKER_JSON_REPORT ?? "reports/mutation/mutation.json",
+  },
 
   // Run mutants directly in the package instead of in a copied sandbox.
   // Package jest configs use relative requires such as
