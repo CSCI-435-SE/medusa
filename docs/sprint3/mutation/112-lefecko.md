@@ -1,6 +1,6 @@
 # Mutation testing: Issue #112 -- Add API to create and manage product bundles
 
-**PR(s):** #116  **Tool:** StrykerJS 10.1 with the Jest runner  **Config:** [stryker.config.mjs](../../../stryker.config.mjs) (written for this deliverable; no teammate setup was reused)  **Command:** `STRYKER_JSON_REPORT=../../../docs/sprint3/mutation/reports/112-lefecko-before.json node ../../../node_modules/.bin/stryker run ../../../stryker.config.mjs --mutate "src/product/utils/bundle.ts"`, run from `packages/core/core-flows` (`-after.json` for the re-run)
+**PR(s):** #116  **Tool:** StrykerJS 10.1 with the Jest runner (`@stryker-mutator/core` and `@stryker-mutator/jest-runner`, installed locally with `npm install --no-save`, so `package.json` and `yarn.lock` are unchanged)  **Config:** [stryker.config.mjs](../../../stryker.config.mjs) (written for this deliverable; no teammate setup was reused)  **Command:** `STRYKER_JSON_REPORT=../../../docs/sprint3/mutation/reports/112-lefecko-before.json node ../../../node_modules/.bin/stryker run ../../../stryker.config.mjs --mutate "src/product/utils/bundle.ts"`, run from `packages/core/core-flows` (`-after.json` for the re-run)
 **Reports:** [before](reports/112-lefecko-before.json) · [after](reports/112-lefecko-after.json)
 **Mutation score:** before 90.15% → after 97.04%
 

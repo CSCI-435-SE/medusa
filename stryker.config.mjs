@@ -1,14 +1,26 @@
 // Shared Stryker mutation-testing config for the Medusa monorepo.
 //
+// Setup: Stryker is NOT a committed dependency (it is not in package.json), to
+// keep the lockfile untouched. Install it locally without saving it:
+//
+//   npm install --no-save @stryker-mutator/core@10 @stryker-mutator/jest-runner@10
+//
+// (or `yarn add -D` the same two packages if you want it in package.json).
+// Also build the workspace packages the tests import first, e.g.
+//   yarn turbo run build --filter=@medusajs/framework...
+//
 // Usage: run from INSIDE the package you want to mutate, so Stryker picks up
 // that package's own jest.config.js (each package has its own moduleNameMapper
-// and transform settings), pointing at this shared file:
+// and transform settings), pointing at this shared file. Call the binary
+// directly (`yarn stryker` is not resolvable from a package directory):
 //
-//   cd packages/modules/api-key
-//   yarn stryker run ../../../stryker.config.mjs
+//   cd packages/core/core-flows
+//   node ../../../node_modules/.bin/stryker run ../../../stryker.config.mjs \
+//     --mutate "src/product/utils/bundle.ts"
 //
-// Narrow the scope with --mutate for faster runs, e.g.:
-//   yarn stryker run ../../../stryker.config.mjs --mutate "src/services/**/*.ts"
+// To write the JSON report somewhere specific (the CLI cannot override nested
+// options), set STRYKER_JSON_REPORT, e.g.
+//   STRYKER_JSON_REPORT=../../../docs/sprint3/mutation/reports/112-lefecko-before.json
 //
 // Do not run this from the repo root: the root jest.config.js fans out to
 // every package as a multi-project config, which would mean mutating (and
