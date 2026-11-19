@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Issue #113 mutation testing (D6). Run from this directory: npx stryker run. Mutates the two files #113 added with the refund-share, single-item-return and out-of-stock-message logic. Their unit tests run on src/ through swc, so no build step or database is needed. inPlace because the sandbox copy breaks jest.config.js's relative require of define_jest_config. Based on my #62 setup (packages/modules/inventory/stryker.config.json), simplified because these are plain unit tests.",
+  "packageManager": "yarn",
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "jest.config.js",
+    "config": {
+      "testMatch": [
+        "<rootDir>/src/order/utils/__tests__/bundle-refunds.spec.ts",
+        "<rootDir>/src/cart/utils/__tests__/insufficient-inventory-error.spec.ts"
+      ]
+    },
+    "enableFindRelatedTests": false
+  },
+  "mutate": [
+    "src/order/utils/bundle-refunds.ts",
+    "src/cart/utils/insufficient-inventory-error.ts"
+  ],
+  "inPlace": true,
+  "coverageAnalysis": "perTest",
+  "timeoutMS": 30000,
+  "reporters": ["clear-text", "progress", "json", "html"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  },
+  "tempDirName": ".stryker-tmp"
+}

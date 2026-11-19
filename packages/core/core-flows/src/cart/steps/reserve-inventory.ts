@@ -1,6 +1,13 @@
-import { MathBN, Modules } from "@medusajs/framework/utils"
+import { MathBN, MedusaError, Modules } from "@medusajs/framework/utils"
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import type { BigNumberInput } from "@medusajs/framework/types"
+import type {
+  BigNumberInput,
+  ReservationItemDTO,
+} from "@medusajs/framework/types"
+import {
+  buildInsufficientInventoryError,
+  findShortReservationItems,
+} from "../utils/insufficient-inventory-error"
 
 /**
  * The details of the items and their quantity to reserve.
@@ -16,6 +23,12 @@ export interface ReserveVariantInventoryStepInput {
      * The ID of the inventory item to reserve quantities from.
      */
     inventory_item_id: string
+
+    /**
+     * The ID of the line item's variant. It's used to name the out-of-stock
+     * product in the error message.
+     */
+    variant_id?: string
 
     /**
      * The number of units a single quantity is equivalent to. For example, if a customer orders one quantity of the variant, Medusa checks the availability of the quantity multiplied by the
@@ -87,9 +100,30 @@ export const reserveInventoryStep = createStep(
 
     const lockingKeys = Array.from(new Set(inventoryItemIds))
 
-    const reservations = await locking.execute(lockingKeys, async () => {
-      return await inventoryService.createReservationItems(items)
-    })
+    let reservations: ReservationItemDTO[]
+    try {
+      reservations = await locking.execute(lockingKeys, async () => {
+        return await inventoryService.createReservationItems(items)
+      })
+    } catch (error) {
+      if (error?.code !== MedusaError.Codes.INSUFFICIENT_INVENTORY) {
+        throw error
+      }
+
+      // Replace the inventory module's message (which only has an inventory
+      // item ID) with one that names the out-of-stock products.
+      const shortItems = await findShortReservationItems(
+        container,
+        items.map((item, i) => ({
+          ...item,
+          variant_id: data.items[i].variant_id,
+        }))
+      )
+      if (!shortItems.length) {
+        throw error
+      }
+      throw await buildInsufficientInventoryError(container, shortItems)
+    }
 
     return new StepResponse(reservations, {
       reservations: reservations.map((r) => r.id),

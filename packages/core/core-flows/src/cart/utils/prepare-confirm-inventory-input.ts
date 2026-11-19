@@ -68,6 +68,7 @@ interface ConfirmInventoryPreparationInput {
 
 interface ConfirmInventoryItem {
   id?: string
+  variant_id?: string
   inventory_item_id: string
   required_quantity: number
   allow_backorder: boolean
@@ -267,6 +268,7 @@ const formatInventoryInput = ({
 
       itemsToConfirm.push({
         id: item.id,
+        variant_id: item.variant_id!,
         inventory_item_id: variantInventoryItem.inventory_item_id,
         required_quantity: variantInventoryItem.required_quantity,
         allow_backorder: !!variant.allow_backorder,

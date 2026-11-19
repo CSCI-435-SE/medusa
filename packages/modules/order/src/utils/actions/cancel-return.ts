@@ -4,6 +4,7 @@ import {
   MedusaError,
 } from "@medusajs/framework/utils"
 import { OrderChangeProcessing } from "../calculate-order-change"
+import { getBundleComponentAmount } from "../bundle-component"
 import { setActionReference } from "../set-action-reference"
 
 OrderChangeProcessing.registerActionType(ChangeActionType.CANCEL_RETURN_ITEM, {
@@ -11,6 +12,12 @@ OrderChangeProcessing.registerActionType(ChangeActionType.CANCEL_RETURN_ITEM, {
     const existing = currentOrder.items.find(
       (item) => item.id === action.details.reference_id
     )!
+
+    const bundleComponentAmount = getBundleComponentAmount(action)
+    if (bundleComponentAmount !== undefined) {
+      setActionReference(existing, action, options)
+      return bundleComponentAmount
+    }
 
     existing.detail.return_requested_quantity ??= 0
 
@@ -46,6 +53,12 @@ OrderChangeProcessing.registerActionType(ChangeActionType.CANCEL_RETURN_ITEM, {
         MedusaError.Types.INVALID_DATA,
         `Quantity to cancel return of item ${refId} is required.`
       )
+    }
+
+    // Bundle component returns are validated per component by the
+    // return workflows, not against the bundle line's quantities.
+    if (getBundleComponentAmount(action) !== undefined) {
+      return
     }
 
     const greater = MathBN.gt(

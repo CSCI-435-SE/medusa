@@ -2,13 +2,9 @@ import type {
   BigNumberInput,
   IInventoryService,
 } from "@medusajs/framework/types"
-import {
-  MathBN,
-  MedusaError,
-  Modules,
-  promiseAll,
-} from "@medusajs/framework/utils"
+import { MathBN, Modules, promiseAll } from "@medusajs/framework/utils"
 import { StepResponse, createStep } from "@medusajs/framework/workflows-sdk"
+import { buildInsufficientInventoryError } from "../utils/insufficient-inventory-error"
 
 /**
  * The details of the cart items to confirm their inventory availability.
@@ -22,6 +18,11 @@ export interface ConfirmVariantInventoryStepInput {
      * The ID of the inventory item associated with the line item's variant.
      */
     inventory_item_id: string
+    /**
+     * The ID of the line item's variant. It's used to name the out-of-stock
+     * product in the error message.
+     */
+    variant_id?: string
     /**
      * The number of units a single quantity is equivalent to. For example, if a customer orders one quantity of the variant, Medusa checks the availability of the quantity multiplied by the
      * value set for `required_quantity`. When the customer orders the quantity, Medusa reserves the ordered quantity multiplied by the value set for `required_quantity`.
@@ -88,12 +89,9 @@ export const confirmInventoryStep = createStep(
 
     const inventoryCoverage = await promiseAll(promises)
 
-    if (inventoryCoverage.some((hasCoverage) => !hasCoverage)) {
-      throw new MedusaError(
-        MedusaError.Types.NOT_ALLOWED,
-        `Some variant does not have the required inventory`,
-        MedusaError.Codes.INSUFFICIENT_INVENTORY
-      )
+    const shortItems = data.items.filter((_, i) => !inventoryCoverage[i])
+    if (shortItems.length) {
+      throw await buildInsufficientInventoryError(container, shortItems)
     }
 
     return new StepResponse(null)

@@ -4,6 +4,10 @@ import {
   MedusaError,
 } from "@medusajs/framework/utils"
 import { OrderChangeProcessing } from "../calculate-order-change"
+import {
+  addBundleComponentCredit,
+  getBundleComponentAmount,
+} from "../bundle-component"
 import { setActionReference } from "../set-action-reference"
 
 OrderChangeProcessing.registerActionType(ChangeActionType.RECEIVE_RETURN_ITEM, {
@@ -12,6 +16,13 @@ OrderChangeProcessing.registerActionType(ChangeActionType.RECEIVE_RETURN_ITEM, {
     const existing = currentOrder.items.find(
       (item) => item.id === action.details.reference_id
     )!
+
+    const bundleComponentAmount = getBundleComponentAmount(action)
+    if (bundleComponentAmount !== undefined) {
+      addBundleComponentCredit(currentOrder, action, bundleComponentAmount)
+      setActionReference(existing, action, options)
+      return bundleComponentAmount
+    }
 
     let toReturn = action.details.quantity
 
@@ -54,6 +65,12 @@ OrderChangeProcessing.registerActionType(ChangeActionType.RECEIVE_RETURN_ITEM, {
         MedusaError.Types.INVALID_DATA,
         `Quantity to receive return of item ${refId} is required.`
       )
+    }
+
+    // Bundle component returns are validated per component by the
+    // return workflows, not against the bundle line's quantities.
+    if (getBundleComponentAmount(action) !== undefined) {
+      return
     }
 
     const quantityRequested = existing?.detail?.return_requested_quantity || 0

@@ -128,6 +128,7 @@ export const completeCartFields = [
   "items.variant.id",
   "items.variant.product.id",
   "items.variant.product.is_giftcard",
+  "items.variant.product.metadata",
   "items.variant.product.shipping_profile.id",
   "items.variant.manage_inventory",
   "items.variant.allow_backorder",

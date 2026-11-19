@@ -7,6 +7,9 @@ import {
   promiseAll,
 } from "@medusajs/framework/utils"
 
+const getBundleComponentVariantId = (metadata?: Record<string, any> | null) =>
+  metadata?.bundle_component?.variant_id ?? null
+
 function createReturnItems(data) {
   return data.items.map((item) => ({
     action: ChangeActionType.RECEIVE_RETURN_ITEM,
@@ -16,6 +19,7 @@ function createReturnItems(data) {
     details: {
       reference_id: item.id,
       quantity: item.quantity,
+      metadata: item.metadata,
     },
   }))
 }
@@ -47,7 +51,13 @@ async function createOrderChange(
 function updateReturnItems(returnEntry, items) {
   return returnEntry.items
     .map((item) => {
-      const data = items.find((i) => i.details.reference_id === item.item_id)
+      // A bundle line can have one return item per returned component.
+      const data = items.find(
+        (i) =>
+          i.details.reference_id === item.item_id &&
+          getBundleComponentVariantId(i.details.metadata) ===
+            getBundleComponentVariantId(item.metadata)
+      )
       if (!data) return
 
       const receivedQuantity = MathBN.add(

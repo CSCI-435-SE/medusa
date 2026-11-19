@@ -49,6 +49,11 @@ export interface AdminAddReturnItem {
    * Custom key-value pairs that can be added to the return item.
    */
   metadata?: Record<string, unknown>
+  /**
+   * The ID of a component variant to return from a bundle item instead of the
+   * whole bundle. Its refund is the component's share of the bundle price.
+   */
+  component_variant_id?: string
 }
 
 export interface AdminAddReturnItems {
@@ -188,6 +193,11 @@ export interface AdminReceiveItems {
      * The description of the received item.
      */
     description?: string
+    /**
+     * The ID of the bundle component variant, when the return item returns a
+     * single component of a bundle.
+     */
+    component_variant_id?: string
   }[]
 }
 
@@ -209,6 +219,11 @@ export interface AdminDismissItems {
      * describe the damaged item.
      */
     internal_note?: string
+    /**
+     * The ID of the bundle component variant, when the return item returns a
+     * single component of a bundle.
+     */
+    component_variant_id?: string
   }[]
 }
 

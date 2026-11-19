@@ -15,6 +15,7 @@ import {
 } from "@medusajs/framework/workflows-sdk"
 import { useRemoteQueryStep } from "../../../common"
 import { previewOrderChangeStep } from "../../steps"
+import { prepareBundleReturnItemsStep } from "../../steps/return/prepare-bundle-return-items"
 import {
   throwIfIsCancelled,
   throwIfItemsDoesNotExistsInOrder,
@@ -175,8 +176,14 @@ export const requestItemReturnWorkflow = createWorkflow(
       orderChange,
     })
 
+    // Issue #113: names a returned bundle component and its refund on the item.
+    const returnItems = prepareBundleReturnItemsStep({
+      order_id: orderReturn.order_id,
+      items: input.items,
+    })
+
     const orderChangeActionInput = transform(
-      { order, orderChange, orderReturn, items: input.items },
+      { order, orderChange, orderReturn, items: returnItems },
       ({ order, orderChange, orderReturn, items }) => {
         return items.map((item) => ({
           order_change_id: orderChange.id,

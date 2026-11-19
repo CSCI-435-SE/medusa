@@ -83,6 +83,7 @@ const ReceiveItemSchema = z.object({
   id: z.string(),
   quantity: z.number().min(1),
   internal_note: z.string().optional(),
+  component_variant_id: z.string().optional(),
 })
 export const AdminPostReceiveReturnItemsReqSchema = z.object({
   items: z.array(ReceiveItemSchema),
@@ -130,6 +131,7 @@ export const AdminPostReturnsRequestItemsReqSchema = z.object({
       internal_note: z.string().optional(),
       reason_id: z.string().optional(),
       metadata: z.record(z.string(), z.unknown()).optional(),
+      component_variant_id: z.string().optional(),
     })
   ),
 })

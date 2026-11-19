@@ -29,6 +29,12 @@ export interface CreateReturnItem {
    * Custom key-value pairs of data to store in the return item.
    */
   metadata?: Record<string, any> | null
+  /**
+   * The ID of a component variant to return from a bundle item, instead of
+   * the whole bundle. Its refund is the component's share of the bundle price.
+   * Only supported by return workflows.
+   */
+  component_variant_id?: string | null
 }
 
 /**

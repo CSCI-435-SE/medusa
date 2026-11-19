@@ -183,6 +183,50 @@ moduleIntegrationTestRunner<IInventoryService>({
           expect(inventoryLevel.reserved_quantity).toEqual(3)
         })
 
+        it("should check the stock for all reservations of one batch together", async () => {
+          // Stock is 2: each reservation fits on its own, both together don't
+          // (a bundle and one of its components in the same cart).
+          const reserveTwiceTheStock = service.createReservationItems([
+            {
+              inventory_item_id: inventoryItem.id,
+              location_id: "location-1",
+              quantity: 2,
+              line_item_id: "line-bundle",
+            },
+            {
+              inventory_item_id: inventoryItem.id,
+              location_id: "location-1",
+              quantity: 1,
+              line_item_id: "line-component",
+            },
+          ])
+
+          await expect(reserveTwiceTheStock).rejects.toThrow(
+            `Not enough stock available for item ${inventoryItem.id} at location location-1`
+          )
+
+          const inventoryLevel =
+            await service.retrieveInventoryLevelByItemAndLocation(
+              inventoryItem.id,
+              "location-1"
+            )
+          expect(inventoryLevel.reserved_quantity).toEqual(0)
+
+          // Other locations have their own stock.
+          await service.createReservationItems([
+            {
+              inventory_item_id: inventoryItem.id,
+              location_id: "location-1",
+              quantity: 2,
+            },
+            {
+              inventory_item_id: inventoryItem.id,
+              location_id: "location-2",
+              quantity: 2,
+            },
+          ])
+        })
+
         it("should create reservationItems from array", async () => {
           const data = [
             {
@@ -670,7 +714,8 @@ moduleIntegrationTestRunner<IInventoryService>({
             {
               inventory_item_id: inventoryItem.id,
               location_id: "location-1",
-              stocked_quantity: 2,
+              // Enough stock for every reservation below: a batch is checked as a whole.
+              stocked_quantity: 6,
             },
             {
               inventory_item_id: inventoryItem.id,
@@ -783,7 +828,8 @@ moduleIntegrationTestRunner<IInventoryService>({
             {
               inventory_item_id: inventoryItem.id,
               location_id: "location-1",
-              stocked_quantity: 2,
+              // Enough stock for every reservation below: a batch is checked as a whole.
+              stocked_quantity: 4,
             },
             {
               inventory_item_id: inventoryItem.id,
