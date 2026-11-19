@@ -35,3 +35,7 @@ dist/**
 
 .cursorignore
 **/.medusa
+# StrykerJS mutation testing output
+.stryker-tmp
+packages/modules/inventory/reports/mutation
+packages/core/core-flows/reports/mutation
