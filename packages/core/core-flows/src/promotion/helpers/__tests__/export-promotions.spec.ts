@@ -139,6 +139,15 @@ describe("normalizePromotionForExport", () => {
     )
   })
 
+  it("leaves the code cell empty for a promotion that has no code", () => {
+    // AC5: a field the promotion doesn't have is an empty cell. The test above
+    // covers every other column, but it gives the promotion a code, so the
+    // code column's own empty case was never exercised.
+    const row = normalizePromotionForExport({ id: "promo_4" } as PromotionDTO)
+
+    expect(row.Code).toEqual("")
+  })
+
   it("writes a limit of 0 and a value of 0 rather than treating them as unset", () => {
     const row = normalizePromotionForExport({
       ...STANDARD,
@@ -257,6 +266,57 @@ describe("exported promotions read back through the import", () => {
 
     expect(promotions[0].rules).toEqual([
       { attribute: "customer_group_id", operator: "in", values: ["cg", "1"] },
+    ])
+  })
+
+  // AC4 says a rule is written `attribute:operator:value`, and AC6 says an
+  // exported file imports back. The import's parseRules rejects the whole
+  // column when a rule has no attribute, an unknown operator, or no values, so
+  // a rule the export cannot write completely has to be left out or the file
+  // stops being importable. The expected value here is AC6's own wording: no
+  // errors, and the promotion comes back with the rules that were readable.
+  it("leaves out a rule with no attribute or no operator, so the file still imports", () => {
+    const promotion = {
+      ...STANDARD,
+      rules: [
+        rule("currency_code", "eq", "eur"),
+        { ...rule("", "eq", "usd"), attribute: undefined },
+        { ...rule("customer_group_id", "", "cg_1"), operator: undefined },
+      ],
+    } as PromotionDTO
+
+    const rows = parsePromotionImportCsv(toCsv([promotion]))
+    const { promotions, errors } = validatePromotionImport(rows, [], ["camp_1"])
+
+    expect(errors).toEqual([])
+    expect(promotions[0].rules).toEqual([
+      { attribute: "currency_code", operator: "eq", values: ["eur"] },
+    ])
+  })
+
+  it("leaves out a rule whose only value is blank, so the file still imports", () => {
+    // A rule value row is allowed to have no value (PromotionRuleValueDTO.value
+    // is optional). Such a rule has nothing the import can read, so by AC6 it
+    // must be left out rather than written as `attribute:operator:`.
+    const promotion = {
+      ...STANDARD,
+      rules: [
+        rule("currency_code", "eq", "eur"),
+        {
+          id: "prule_blank",
+          attribute: "customer_group_id",
+          operator: "in",
+          values: [{ id: "pruleval_blank" }],
+        },
+      ],
+    } as PromotionDTO
+
+    const rows = parsePromotionImportCsv(toCsv([promotion]))
+    const { promotions, errors } = validatePromotionImport(rows, [], ["camp_1"])
+
+    expect(errors).toEqual([])
+    expect(promotions[0].rules).toEqual([
+      { attribute: "currency_code", operator: "eq", values: ["eur"] },
     ])
   })
 })
