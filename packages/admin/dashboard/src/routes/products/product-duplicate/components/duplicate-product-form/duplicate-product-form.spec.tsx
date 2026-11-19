@@ -28,6 +28,25 @@ import { RouteDrawer } from "../../../../../components/modals"
 import { DuplicateProductForm } from "./duplicate-product-form"
 
 const mutateAsync = vi.fn()
+// Declared through `vi.hoisted` because the `vi.mock` factories below are
+// hoisted above plain `const` declarations and reference these at module load.
+const { navigate, toastSuccess, toastError } = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}))
+
+// Only `useNavigate` is replaced: the tests still render through a real
+// router so RouteDrawer behaves normally.
+vi.mock("react-router-dom", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-router-dom")>()),
+  useNavigate: () => navigate,
+}))
+
+vi.mock("@medusajs/ui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@medusajs/ui")>()),
+  toast: { success: toastSuccess, error: toastError },
+}))
 
 // The mutation itself is covered by the integration tests; here it is stubbed
 // so the form's validation and submit behavior can be checked in isolation.
@@ -70,6 +89,9 @@ vi.mock("react-i18next", () => ({
 afterEach(() => {
   cleanup()
   mutateAsync.mockReset()
+  navigate.mockReset()
+  toastSuccess.mockReset()
+  toastError.mockReset()
 })
 
 const product = {
@@ -305,6 +327,49 @@ describe("DuplicateProductForm", () => {
         prices: false,
         inventory_settings: false,
       })
+    })
+  })
+
+  // AC9. `mutateAsync` is the real react-query mutation in the app, so the
+  // callbacks it is given here are invoked the way react-query invokes them.
+  describe("after duplicating", () => {
+    const submit = async () => {
+      const user = userEvent.setup()
+      renderForm()
+      await user.click(screen.getByRole("button", { name: "Duplicate" }))
+    }
+
+    it("goes to the new product and replaces the drawer in history", async () => {
+      mutateAsync.mockImplementation(async (_payload, { onSuccess }) =>
+        onSuccess({ product: { id: "prod_2", title: "Classic Tee (Copy)" } })
+      )
+
+      await submit()
+
+      await waitFor(() =>
+        expect(navigate).toHaveBeenCalledWith("/products/prod_2", {
+          replace: true,
+        })
+      )
+      expect(toastSuccess).toHaveBeenCalled()
+      expect(toastError).not.toHaveBeenCalled()
+    })
+
+    it("shows the error and stays put when duplication fails", async () => {
+      mutateAsync.mockImplementation(async (_payload, { onError }) =>
+        onError(
+          new Error('Product with handle "classic-tee-copy" already exists.')
+        )
+      )
+
+      await submit()
+
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(
+          'Product with handle "classic-tee-copy" already exists.'
+        )
+      )
+      expect(navigate).not.toHaveBeenCalled()
     })
   })
 })
