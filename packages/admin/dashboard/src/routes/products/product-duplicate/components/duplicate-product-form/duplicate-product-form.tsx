@@ -1,6 +1,6 @@
 import { HttpTypes } from "@medusajs/types"
-import { Button, Input, toast } from "@medusajs/ui"
-import { FieldErrors, Resolver, useForm } from "react-hook-form"
+import { Button, Checkbox, Hint, Input, Text, toast } from "@medusajs/ui"
+import { FieldErrors, Resolver, useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 
@@ -13,12 +13,56 @@ type DuplicateProductFormProps = {
   product: Pick<HttpTypes.AdminProduct, "id" | "title" | "handle">
 }
 
-type DuplicateProductValues = { title: string; handle: string }
+type DuplicateProductInclude = {
+  images: boolean
+  variants: boolean
+  prices: boolean
+  inventory_settings: boolean
+}
+
+type DuplicateProductValues = {
+  title: string
+  handle: string
+  include: DuplicateProductInclude
+}
 
 /**
- * Both fields are required, nothing else is checked here. The server still
- * checks that the handle is not already used by another product and the error
- * is shown as a toast.
+ * The groups the owner can choose from, in the order they are shown. Prices and
+ * inventory settings are stored on the variants, so they are only available
+ * when variants are copied.
+ */
+const INCLUDE_FIELDS: {
+  name: keyof DuplicateProductInclude
+  labelKey: string
+  requiresVariants: boolean
+}[] = [
+  {
+    name: "images",
+    labelKey: "products.duplicate.include.images",
+    requiresVariants: false,
+  },
+  {
+    name: "variants",
+    labelKey: "products.duplicate.include.variants",
+    requiresVariants: false,
+  },
+  {
+    name: "prices",
+    labelKey: "products.duplicate.include.prices",
+    requiresVariants: true,
+  },
+  {
+    name: "inventory_settings",
+    labelKey: "products.duplicate.include.inventorySettings",
+    requiresVariants: true,
+  },
+]
+
+/**
+ * Both text fields are required, nothing else is checked here. The groups are
+ * booleans, and any combination of them is valid. The server still checks that
+ * the handle is not already used by another product and the error is shown as
+ * a toast.
  *
  * This is a plain resolver instead of `zodResolver` because the installed
  * `@hookform/resolvers` (3.4.2) cannot catch zod 4 validation errors: it
@@ -39,7 +83,7 @@ const resolver: Resolver<DuplicateProductValues> = async (values) => {
 
   return Object.keys(errors).length
     ? { values: {}, errors }
-    : { values: { title, handle }, errors: {} }
+    : { values: { title, handle, include: values.include }, errors: {} }
 }
 
 export const DuplicateProductForm = ({
@@ -50,18 +94,49 @@ export const DuplicateProductForm = ({
 
   const form = useForm<DuplicateProductValues>({
     // Pre-filled as a starting point; the owner can keep or edit both values.
+    // Every group starts selected, so duplicating without touching the
+    // checkboxes copies the whole product. The selection is not remembered
+    // between attempts.
     defaultValues: {
       title: `${product.title} (Copy)`,
       handle: `${product.handle}-copy`,
+      include: {
+        images: true,
+        variants: true,
+        prices: true,
+        inventory_settings: true,
+      },
     },
     resolver,
   })
 
+  const variantsSelected = useWatch({
+    control: form.control,
+    name: "include.variants",
+  })
+
   const { mutateAsync, isPending } = useDuplicateProduct(product.id)
+
+  /**
+   * Unselecting variants also unselects the two groups that depend on them, so
+   * the payload always matches the checkboxes the owner can see.
+   */
+  const onVariantsChange = (checked: boolean) => {
+    form.setValue("include.variants", checked)
+
+    if (!checked) {
+      form.setValue("include.prices", false)
+      form.setValue("include.inventory_settings", false)
+    }
+  }
 
   const handleSubmit = form.handleSubmit(async (data) => {
     await mutateAsync(
-      { title: data.title.trim(), handle: data.handle.trim() },
+      {
+        title: data.title.trim(),
+        handle: data.handle.trim(),
+        include: data.include,
+      },
       {
         onSuccess: ({ product: created }) => {
           toast.success(
@@ -115,6 +190,47 @@ export const DuplicateProductForm = ({
               )
             }}
           />
+          <div className="flex flex-col gap-y-3">
+            <Text size="small" weight="plus" leading="compact">
+              {t("products.duplicate.include.label")}
+            </Text>
+            {INCLUDE_FIELDS.map(({ name, labelKey, requiresVariants }) => {
+              const disabled = requiresVariants && !variantsSelected
+
+              return (
+                <Form.Field
+                  key={name}
+                  control={form.control}
+                  name={`include.${name}`}
+                  render={({ field: { value, onChange, ...field } }) => {
+                    return (
+                      <Form.Item>
+                        <div className="flex items-center gap-x-2">
+                          <Form.Control>
+                            <Checkbox
+                              {...field}
+                              checked={value}
+                              disabled={disabled}
+                              onCheckedChange={(checked) =>
+                                name === "variants"
+                                  ? onVariantsChange(!!checked)
+                                  : onChange(!!checked)
+                              }
+                            />
+                          </Form.Control>
+                          <Form.Label className="!mb-0">
+                            {/* The keys are dynamic, as in customizer-menu.tsx. */}
+                            {t(labelKey as any)}
+                          </Form.Label>
+                        </div>
+                      </Form.Item>
+                    )
+                  }}
+                />
+              )
+            })}
+            <Hint>{t("products.duplicate.include.hint")}</Hint>
+          </div>
         </RouteDrawer.Body>
         <RouteDrawer.Footer>
           <div className="flex items-center justify-end gap-x-2">

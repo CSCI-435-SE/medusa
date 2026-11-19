@@ -14,12 +14,13 @@ export const POST = async (
   >,
   res: MedusaResponse<HttpTypes.AdminProductResponse>
 ) => {
-  const { title, handle, additional_data } = req.validatedBody
+  const { title, handle, include, additional_data } = req.validatedBody
 
   // The workflow validates the source product, the new title and the handle
-  // before creating anything, and throws a MedusaError otherwise.
+  // before creating anything, and throws a MedusaError otherwise. It also
+  // fills in the attribute groups `include` leaves out.
   const { result } = await duplicateProductWorkflow(req.scope).run({
-    input: { id: req.params.id, title, handle, additional_data },
+    input: { id: req.params.id, title, handle, include, additional_data },
   })
 
   const product = await refetchEntity({

@@ -451,6 +451,28 @@ export interface AdminBatchUpdateProductVariant
   id: string
 }
 
+export interface AdminDuplicateProductInclude {
+  /**
+   * Whether to copy the product's images.
+   */
+  images?: boolean
+  /**
+   * Whether to copy the product's variants.
+   */
+  variants?: boolean
+  /**
+   * Whether to copy the variants' prices. Ignored when `variants` is `false`,
+   * since prices are stored on the variants.
+   */
+  prices?: boolean
+  /**
+   * Whether to copy the variants' `manage_inventory` and `allow_backorder`
+   * settings. Stock quantities are never copied. Ignored when `variants` is
+   * `false`.
+   */
+  inventory_settings?: boolean
+}
+
 export interface AdminDuplicateProduct {
   /**
    * The title of the new product.
@@ -460,6 +482,12 @@ export interface AdminDuplicateProduct {
    * The handle of the new product. It must not be used by another product.
    */
   handle: string
+  /**
+   * Which attribute groups to copy. Any group left out is copied, so omitting
+   * this duplicates the whole product. Basic product information and options
+   * are always copied.
+   */
+  include?: AdminDuplicateProductInclude
 }
 
 export interface AdminUpdateProduct {

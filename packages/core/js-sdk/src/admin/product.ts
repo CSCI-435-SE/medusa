@@ -351,8 +351,12 @@ export class Product {
    * The copy is always a draft, and SKU, barcode, EAN and UPC are left empty on its variants.
    * It sends a request to the Duplicate Product API route.
    *
+   * Pass `include` to choose which attribute groups are copied. Any group left
+   * out is copied, so omitting it duplicates the whole product. Basic product
+   * information and options are always copied, and stock quantities never are.
+   *
    * @param id - The ID of the product to duplicate.
-   * @param body - The title and handle of the new product.
+   * @param body - The title and handle of the new product, and which attribute groups to copy.
    * @param query - Configure the fields to retrieve in the new product.
    * @param headers - Headers to pass in the request.
    * @returns The new product's details.
@@ -361,6 +365,7 @@ export class Product {
    * sdk.admin.product.duplicate("prod_123", {
    *   title: "Classic Tee - Long Sleeve",
    *   handle: "classic-tee-long-sleeve",
+   *   include: { images: true, variants: true, prices: false },
    * })
    * .then(({ product }) => {
    *   console.log(product)
