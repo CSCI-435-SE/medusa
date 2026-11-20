@@ -14,6 +14,19 @@ vi.hoisted(() => {
   g.__JWT_TOKEN_STORAGE_KEY__ = ""
 })
 
+// Button renders a Spinner from @medusajs/icons while isLoading, and that
+// package installs its own React, so rendering it here throws. Same stand-in
+// the promotion import spec uses.
+vi.mock("@medusajs/icons", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return Object.fromEntries(
+    Object.keys(actual).map((name) => [
+      name,
+      () => <div data-testid={`icon-${name}`} />,
+    ])
+  )
+})
+
 // vi.mock factories are hoisted above the rest of the file, so the mocks they
 // use have to be hoisted too.
 const {
@@ -22,12 +35,15 @@ const {
   mockHandleSuccess,
   mockExportPromotions,
   mockSearchParams,
+  mockIsPending,
 } = vi.hoisted(() => ({
   mockToastInfo: vi.fn(),
   mockToastError: vi.fn(),
   mockHandleSuccess: vi.fn(),
   mockExportPromotions: vi.fn(),
   mockSearchParams: { limit: 20, offset: 0, q: "SAVE" },
+  // Mutable so a test can put the mutation in its pending state.
+  mockIsPending: { value: false },
 }))
 
 vi.mock("@medusajs/ui", async () => {
@@ -41,7 +57,10 @@ vi.mock("@medusajs/ui", async () => {
 })
 
 vi.mock("../../../hooks/api/promotions", () => ({
-  useExportPromotions: () => ({ mutateAsync: mockExportPromotions }),
+  useExportPromotions: () => ({
+    mutateAsync: mockExportPromotions,
+    isPending: mockIsPending.value,
+  }),
 }))
 
 vi.mock("../../../hooks/table/query/use-promotion-table-query", () => ({
@@ -86,6 +105,7 @@ const exportButton = () => screen.getByRole("button", { name: "Export" })
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockIsPending.value = false
 })
 
 afterEach(() => {
@@ -123,6 +143,22 @@ describe("PromotionExport", () => {
       })
     })
     expect(mockHandleSuccess).toHaveBeenCalled()
+  })
+
+  it("keeps the Export button usable when no export is running", () => {
+    render(<PromotionExport />)
+
+    expect(exportButton().hasAttribute("disabled")).toBe(false)
+  })
+
+  it("disables the Export button while an export is already running", () => {
+    // Without this the drawer stays open until the response arrives, so a
+    // second click starts a second workflow and the admin gets two files and
+    // two notifications.
+    mockIsPending.value = true
+    render(<PromotionExport />)
+
+    expect(exportButton().hasAttribute("disabled")).toBe(true)
   })
 
   it("shows the error and keeps the drawer open when the request fails", async () => {
