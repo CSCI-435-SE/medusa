@@ -76,6 +76,9 @@ export const ProductListTable = () => {
             <Link to={`import${location.search}`}>{t("actions.import")}</Link>
           </Button>
           <Button size="small" variant="secondary" asChild>
+            <Link to="create-bundle">{t("products.bundles.createButton")}</Link>
+          </Button>
+          <Button size="small" variant="secondary" asChild>
             <Link to="create">{t("actions.create")}</Link>
           </Button>
         </div>

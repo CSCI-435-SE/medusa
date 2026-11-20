@@ -45,6 +45,13 @@ export function getRouteMap({
                         import("../../routes/products/product-create"),
                     },
                     {
+                      // Bundles have their own create screen (issue #114): the
+                      // payload and the route they post to are different, and
+                      // there are no options or variants to build up.
+                      path: "create-bundle",
+                      lazy: () => import("../../routes/products/bundle-create"),
+                    },
+                    {
                       path: "import",
                       lazy: () =>
                         import("../../routes/products/product-import"),
@@ -97,6 +104,13 @@ export function getRouteMap({
                           path: "edit-all",
                           lazy: () =>
                             import("../../routes/products/product-edit-full"),
+                        },
+                        {
+                          // Edits a bundle's fields, components and price
+                          // (issue #114).
+                          path: "edit-bundle",
+                          lazy: () =>
+                            import("../../routes/products/bundle-edit"),
                         },
                         {
                           path: "edit-variant",
