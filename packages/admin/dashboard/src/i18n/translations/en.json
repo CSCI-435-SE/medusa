@@ -144,7 +144,6 @@
     "reset": "Reset",
     "confirm": "Confirm",
     "edit": "Edit",
-    "duplicate": "Duplicate",
     "addItems": "Add items",
     "download": "Download",
     "clear": "Clear",
@@ -545,6 +544,45 @@
       },
       "successToast": "Product {{title}} was successfully created."
     },
+    "bundles": {
+      "createButton": "Create bundle",
+      "createHeader": "Create bundle",
+      "createHint": "A bundle is one product made of several variants, sold at its own price.",
+      "editAction": "Edit bundle",
+      "editHeader": "Edit bundle",
+      "editHint": "Change the bundle's details, its components and its price.",
+      "createSuccessToast": "{{title}} was successfully created.",
+      "editSuccessToast": "{{title}} was successfully updated.",
+      "components": {
+        "label": "Components",
+        "hint": "Pick at least 2 variants and how many of each go into one bundle.",
+        "variantPlaceholder": "Search for a variant",
+        "quantityPlaceholder": "How many",
+        "add": "Add component"
+      },
+      "prices": {
+        "label": "Price",
+        "hint": "The bundle is sold at this price. A component's price changing does not change it."
+      },
+      "section": {
+        "header": "Bundle components",
+        "hint": "The variants this bundle is made of.",
+        "quantity": "{{count}}x",
+        "unknownVariant": "Variant {{id}}"
+      },
+      "usage": {
+        "header": "Used in a bundle",
+        "description": "Remove it from these bundles first:"
+      },
+      "errors": {
+        "component": "Pick a variant.",
+        "duplicateComponent": "This variant is already a component. Raise its quantity instead.",
+        "quantity": "Quantity must be a whole number of at least 1.",
+        "minComponents": "A bundle needs at least 2 components.",
+        "price": "Price must be 0 or more.",
+        "minPrices": "Set a price in at least one currency."
+      }
+    },
     "export": {
       "header": "Export Product List",
       "description": "Export the product list to a CSV file.",
@@ -850,6 +888,11 @@
         },
         "error": {
           "header": "Failed to delete product"
+        }
+      },
+      "deleteVariant": {
+        "error": {
+          "header": "Failed to delete variant"
         }
       }
     }
@@ -1311,6 +1354,8 @@
       "editOrder": "Edit order",
       "editOrderContinue": "Continue order edit",
       "inventoryKit": "Consists of {{count}}x inventory items",
+      "bundleComponents": "Bundle of {{count}}x items",
+      "bundleComponentReturned": "{{count}} returned",
       "itemTotal": "Item Total",
       "shippingTotal": "Shipping Total",
       "discountTotal": "Discount Total",

@@ -24,6 +24,7 @@ import { useProductTableFilters } from "../../../../../hooks/table/filters/use-p
 import { useProductTableQuery } from "../../../../../hooks/table/query/use-product-table-query"
 import { useDataTable } from "../../../../../hooks/use-data-table"
 import { productsLoader } from "../../loader"
+import { showDeleteError } from "../../../common/components/bundle-usage"
 import { useFeatureFlag } from "../../../../../providers/feature-flag-provider"
 import { ProductTitleCell } from "./product-title-cell"
 
@@ -78,6 +79,9 @@ export const ProductListTable = () => {
           </Button>
           <Button size="small" variant="secondary" asChild>
             <Link to={`import${location.search}`}>{t("actions.import")}</Link>
+          </Button>
+          <Button size="small" variant="secondary" asChild>
+            <Link to="create-bundle">{t("products.bundles.createButton")}</Link>
           </Button>
           <Button size="small" variant="secondary" asChild>
             <Link to="create">{t("actions.create")}</Link>
@@ -141,9 +145,17 @@ export const ProductActions = ({
           }),
         })
       },
-      onError: (e) => {
-        toast.error(t("products.toasts.delete.error.header"), {
-          description: e.message,
+      onError: async (e) => {
+        // A delete that bundles blocked is shown as the list of bundles, each
+        // with a link to it (issue #114, AC 7).
+        await showDeleteError({
+          error: e,
+          productId: product.id,
+          header: t("products.bundles.usage.header"),
+          fallback: {
+            header: t("products.toasts.delete.error.header"),
+            description: e.message,
+          },
         })
       },
     })

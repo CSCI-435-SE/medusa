@@ -57,6 +57,13 @@ export type BundleInventoryLink = {
 export const MIN_BUNDLE_COMPONENTS = 2
 
 /**
+ * Code set on the error that blocks deleting a product or variant a bundle
+ * uses. The admin dashboard matches on it to list the bundles with a link to
+ * each one (issue #114, AC 7) rather than reading the message text.
+ */
+export const BUNDLE_IN_USE_ERROR_CODE = MedusaError.Codes.BUNDLE_IN_USE
+
+/**
  * Returns true when the product metadata marks the product as a bundle.
  */
 export function isBundleMetadata(
@@ -254,7 +261,8 @@ export function assertNoBundleUsesVariants(
       MedusaError.Types.NOT_ALLOWED,
       `Cannot delete because it is used in the bundle(s): ${usedBy
         .map((bundle) => `"${bundle.title}" (${bundle.id})`)
-        .join(", ")}. Remove it from those bundles first.`
+        .join(", ")}. Remove it from those bundles first.`,
+      BUNDLE_IN_USE_ERROR_CODE
     )
   }
 }

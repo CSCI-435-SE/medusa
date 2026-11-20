@@ -1,5 +1,6 @@
 import { Client } from "../client.js"
 import { ApiKey } from "./api-key.js"
+import { Bundle } from "./bundle.js"
 import { Campaign } from "./campaign.js"
 import { Claim } from "./claim.js"
 import { Currency } from "./currency.js"
@@ -90,6 +91,10 @@ export class Admin {
    * @tags product
    */
   public product: Product
+  /**
+   * @tags product
+   */
+  public bundle: Bundle
   /**
    * @tags product
    */
@@ -285,6 +290,7 @@ export class Admin {
     this.priceList = new PriceList(client)
     this.pricePreference = new PricePreference(client)
     this.product = new Product(client)
+    this.bundle = new Bundle(client)
     this.productType = new ProductType(client)
     this.upload = new Upload(client)
     this.region = new Region(client)

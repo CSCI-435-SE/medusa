@@ -23,6 +23,7 @@ export const MedusaErrorCodes = {
   INSUFFICIENT_INVENTORY: "insufficient_inventory",
   CART_INCOMPATIBLE_STATE: "cart_incompatible_state",
   UNKNOWN_MODULES: "unknown_modules",
+  BUNDLE_IN_USE: "bundle_in_use",
 }
 
 /**

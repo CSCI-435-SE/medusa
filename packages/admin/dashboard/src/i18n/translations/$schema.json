@@ -2165,6 +2165,156 @@
           ],
           "additionalProperties": false
         },
+        "bundles": {
+          "type": "object",
+          "properties": {
+            "createButton": {
+              "type": "string"
+            },
+            "createHeader": {
+              "type": "string"
+            },
+            "createHint": {
+              "type": "string"
+            },
+            "editAction": {
+              "type": "string"
+            },
+            "editHeader": {
+              "type": "string"
+            },
+            "editHint": {
+              "type": "string"
+            },
+            "createSuccessToast": {
+              "type": "string"
+            },
+            "editSuccessToast": {
+              "type": "string"
+            },
+            "components": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                },
+                "variantPlaceholder": {
+                  "type": "string"
+                },
+                "quantityPlaceholder": {
+                  "type": "string"
+                },
+                "add": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "hint",
+                "variantPlaceholder",
+                "quantityPlaceholder",
+                "add"
+              ],
+              "additionalProperties": false
+            },
+            "prices": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                }
+              },
+              "required": ["label", "hint"],
+              "additionalProperties": false
+            },
+            "section": {
+              "type": "object",
+              "properties": {
+                "header": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "string"
+                },
+                "unknownVariant": {
+                  "type": "string"
+                }
+              },
+              "required": ["header", "hint", "quantity", "unknownVariant"],
+              "additionalProperties": false
+            },
+            "usage": {
+              "type": "object",
+              "properties": {
+                "header": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": ["header", "description"],
+              "additionalProperties": false
+            },
+            "errors": {
+              "type": "object",
+              "properties": {
+                "component": {
+                  "type": "string"
+                },
+                "duplicateComponent": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "string"
+                },
+                "minComponents": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "string"
+                },
+                "minPrices": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "component",
+                "duplicateComponent",
+                "quantity",
+                "minComponents",
+                "price",
+                "minPrices"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "createButton",
+            "createHeader",
+            "createHint",
+            "editAction",
+            "editHeader",
+            "editHint",
+            "createSuccessToast",
+            "editSuccessToast",
+            "components",
+            "prices",
+            "section",
+            "usage",
+            "errors"
+          ],
+          "additionalProperties": false
+        },
         "export": {
           "type": "object",
           "properties": {
@@ -3322,9 +3472,26 @@
               },
               "required": ["success", "error"],
               "additionalProperties": false
+            },
+            "deleteVariant": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "header": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["header"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["error"],
+              "additionalProperties": false
             }
           },
-          "required": ["delete"],
+          "required": ["delete", "deleteVariant"],
           "additionalProperties": false
         }
       },
@@ -3334,6 +3501,7 @@
         "duplicate",
         "edit",
         "create",
+        "bundles",
         "export",
         "import",
         "deleteWarning",
@@ -5137,6 +5305,12 @@
             "inventoryKit": {
               "type": "string"
             },
+            "bundleComponents": {
+              "type": "string"
+            },
+            "bundleComponentReturned": {
+              "type": "string"
+            },
             "itemTotal": {
               "type": "string"
             },
@@ -5171,6 +5345,8 @@
             "editOrder",
             "editOrderContinue",
             "inventoryKit",
+            "bundleComponents",
+            "bundleComponentReturned",
             "itemTotal",
             "shippingTotal",
             "discountTotal",
@@ -13221,24 +13397,6 @@
         "progressLabel": {
           "type": "string"
         },
-        "stepsCompletedLabel_zero": {
-          "type": "string"
-        },
-        "stepsCompletedLabel_one": {
-          "type": "string"
-        },
-        "stepsCompletedLabel_two": {
-          "type": "string"
-        },
-        "stepsCompletedLabel_few": {
-          "type": "string"
-        },
-        "stepsCompletedLabel_many": {
-          "type": "string"
-        },
-        "stepsCompletedLabel_other": {
-          "type": "string"
-        },
         "cancel": {
           "type": "object",
           "properties": {
@@ -13266,6 +13424,24 @@
             "successToast"
           ],
           "additionalProperties": false
+        },
+        "stepsCompletedLabel_zero": {
+          "type": "string"
+        },
+        "stepsCompletedLabel_one": {
+          "type": "string"
+        },
+        "stepsCompletedLabel_two": {
+          "type": "string"
+        },
+        "stepsCompletedLabel_few": {
+          "type": "string"
+        },
+        "stepsCompletedLabel_many": {
+          "type": "string"
+        },
+        "stepsCompletedLabel_other": {
+          "type": "string"
         },
         "list": {
           "type": "object",

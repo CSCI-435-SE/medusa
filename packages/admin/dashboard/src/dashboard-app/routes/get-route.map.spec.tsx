@@ -52,7 +52,7 @@ describe("getRouteMap product detail routes", () => {
   // Guards against a bad merge collapsing two child routes into one object
   // (a duplicate `path`/`lazy` key means the last one silently wins, and the
   // other route stops existing).
-  it.each(["edit", "duplicate", "edit-all"])(
+  it.each(["edit", "duplicate", "edit-all", "edit-bundle"])(
     "registers /products/:id/%s as its own lazy route",
     (path) => {
       const matches = getProductDetailChildren().filter(

@@ -31,6 +31,7 @@ import {
 } from "../../../../../hooks/api/products"
 import { useQueryParams } from "../../../../../hooks/use-query-params"
 import { PRODUCT_VARIANT_IDS_KEY } from "../../../common/constants"
+import { showDeleteError } from "../../../common/components/bundle-usage"
 import { Thumbnail } from "../../../../../components/common/thumbnail"
 import { useFeatureFlag } from "../../../../../providers/feature-flag-provider"
 
@@ -183,7 +184,21 @@ const useColumns = (product: HttpTypes.AdminProduct) => {
         return
       }
 
-      await mutateAsync({ variantId: id })
+      try {
+        await mutateAsync({ variantId: id })
+      } catch (error) {
+        // Deleting a variant a bundle uses is blocked. The bundles are listed
+        // with a link to each (issue #114, AC 7).
+        await showDeleteError({
+          error: error as { code?: string; message?: string },
+          variantIds: [id],
+          header: t("products.bundles.usage.header"),
+          fallback: {
+            header: t("products.toasts.deleteVariant.error.header"),
+            description: (error as Error)?.message,
+          },
+        })
+      }
     },
     [mutateAsync, prompt, t]
   )

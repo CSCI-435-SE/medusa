@@ -5,6 +5,7 @@ import { TwoColumnPageSkeleton } from "../../../components/common/skeleton"
 import { LayoutComposer, detailPageDefaultEntries } from "../../../components/layout-composer"
 import { useProduct } from "../../../hooks/api/products"
 import { ProductAttributeSection } from "./components/product-attribute-section"
+import { ProductBundleSection } from "./components/product-bundle-section"
 import { ProductGeneralSection } from "./components/product-general-section"
 import { ProductMediaSection } from "./components/product-media-section"
 import { ProductOptionSection } from "./components/product-option-section"
@@ -58,6 +59,10 @@ export const ProductDetail = () => {
             </LayoutComposer.Entry>
             <LayoutComposer.Entry id="ProductMediaSection">
               <ProductMediaSection product={product} />
+            </LayoutComposer.Entry>
+            {/* Only renders for a bundle (issue #114, AC 5). */}
+            <LayoutComposer.Entry id="ProductBundleSection">
+              <ProductBundleSection product={product} />
             </LayoutComposer.Entry>
             <LayoutComposer.Entry id="ProductOptionSection">
               <ProductOptionSection product={product} />
