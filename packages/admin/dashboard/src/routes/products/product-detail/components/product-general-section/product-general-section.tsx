@@ -10,7 +10,6 @@ import {
   Container,
   Heading,
   StatusBadge,
-  toast,
   usePrompt,
 } from "@medusajs/ui"
 import { useTranslation } from "react-i18next"
@@ -19,6 +18,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { ActionMenu } from "../../../../../components/common/action-menu"
 import { SectionRow } from "../../../../../components/common/section"
 import { useDeleteProduct } from "../../../../../hooks/api/products"
+import { showDeleteError } from "../../../common/components/bundle-usage"
 import { useExtension } from "../../../../../providers/extension-provider"
 import { useFeatureFlag } from "../../../../../providers/feature-flag-provider"
 
@@ -72,9 +72,17 @@ export const ProductGeneralSection = ({
       onSuccess: () => {
         navigate("..")
       },
-      onError: (e) => {
-        toast.error(t("products.toasts.delete.error.header"), {
-          description: e.message,
+      onError: async (e) => {
+        // A delete that bundles blocked is shown as the list of bundles, each
+        // with a link to it (issue #114, AC 7).
+        await showDeleteError({
+          error: e,
+          productId: product.id,
+          header: t("products.bundles.usage.header"),
+          fallback: {
+            header: t("products.toasts.delete.error.header"),
+            description: e.message,
+          },
         })
       },
     })

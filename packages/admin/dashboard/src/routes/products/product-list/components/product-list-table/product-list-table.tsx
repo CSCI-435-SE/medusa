@@ -23,6 +23,7 @@ import { useProductTableFilters } from "../../../../../hooks/table/filters/use-p
 import { useProductTableQuery } from "../../../../../hooks/table/query/use-product-table-query"
 import { useDataTable } from "../../../../../hooks/use-data-table"
 import { productsLoader } from "../../loader"
+import { showDeleteError } from "../../../common/components/bundle-usage"
 import { useFeatureFlag } from "../../../../../providers/feature-flag-provider"
 
 const PAGE_SIZE = 20
@@ -136,9 +137,17 @@ export const ProductActions = ({
           }),
         })
       },
-      onError: (e) => {
-        toast.error(t("products.toasts.delete.error.header"), {
-          description: e.message,
+      onError: async (e) => {
+        // A delete that bundles blocked is shown as the list of bundles, each
+        // with a link to it (issue #114, AC 7).
+        await showDeleteError({
+          error: e,
+          productId: product.id,
+          header: t("products.bundles.usage.header"),
+          fallback: {
+            header: t("products.toasts.delete.error.header"),
+            description: e.message,
+          },
         })
       },
     })
