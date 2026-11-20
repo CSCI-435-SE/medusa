@@ -1,5 +1,6 @@
 import { MedusaError } from "@medusajs/framework/utils"
 import {
+  BUNDLE_IN_USE_ERROR_CODE,
   assertBundleKeepsSingleVariant,
   assertNoBundleUsesVariants,
   assertNoBundleVariants,
@@ -217,6 +218,22 @@ describe("bundle usage lookup (issue #112, AC 11)", () => {
     expect(() =>
       assertNoBundleUsesVariants([cameraKit], ["var_lens"], ["prod_kit"])
     ).not.toThrow()
+  })
+
+  // The admin dashboard needs to tell this error apart from any other reason a
+  // delete failed, so that it can list the bundles with a link to each one
+  // (issue #114, AC 7) instead of showing the message as it is. Matching on the
+  // code keeps it off the message text.
+  it("tags the error with the bundle-in-use code", () => {
+    expect.assertions(3)
+
+    try {
+      assertNoBundleUsesVariants([cameraKit], ["var_lens"])
+    } catch (error) {
+      expect(error.code).toEqual(BUNDLE_IN_USE_ERROR_CODE)
+      expect(error.code).toEqual("bundle_in_use")
+      expect(error.type).toEqual(MedusaError.Types.NOT_ALLOWED)
+    }
   })
 })
 
