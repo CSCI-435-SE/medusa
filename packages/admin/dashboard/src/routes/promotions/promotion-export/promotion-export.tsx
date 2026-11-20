@@ -28,7 +28,7 @@ const PromotionExportContent = () => {
   // filters and search that are applied to the promotion list.
   const { searchParams } = usePromotionTableQuery({})
 
-  const { mutateAsync } = useExportPromotions(searchParams)
+  const { mutateAsync, isPending } = useExportPromotions(searchParams)
   const { handleSuccess } = useRouteModal()
 
   const handleExportRequest = async () => {
@@ -62,7 +62,13 @@ const PromotionExportContent = () => {
               {t("actions.cancel")}
             </Button>
           </RouteDrawer.Close>
-          <Button onClick={handleExportRequest} size="small">
+          {/* The drawer only closes once the request comes back, so without
+          this a second click starts a second export. */}
+          <Button
+            onClick={handleExportRequest}
+            size="small"
+            isLoading={isPending}
+          >
             {t("actions.export")}
           </Button>
         </div>
