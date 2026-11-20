@@ -25,6 +25,19 @@ const server = setupServer(
       statusText: "Internal Server Error",
     })
   }),
+  // What the HTTP error handler returns for a 4xx: a message, a type, and a
+  // code the caller can branch on.
+  http.get(`${baseUrl}/throw-coded`, () => {
+    return HttpResponse.json(
+      {
+        message:
+          'Cannot delete because it is used in the bundle(s): "Camera kit" (prod_kit).',
+        type: "not_allowed",
+        code: "bundle_in_use",
+      },
+      { status: 400, statusText: "Bad Request" }
+    )
+  }),
   http.get(`${baseUrl}/header`, ({ request }) => {
     if (
       request.headers.get("X-custom-header") === "test" &&
@@ -239,6 +252,32 @@ describe("Client", () => {
       const err: FetchError = await client.fetch<any>("throw").catch((e) => e)
       expect(err.status).toEqual(500)
       expect(err.message).toEqual("Internal Server Error")
+    })
+
+    /*
+     * The server distinguishes its errors with `type` and `code`; a caller that
+     * has to tell one refusal from another can only do it on those. Without
+     * them the only thing left is matching on the message text, which changes
+     * with wording and translation.
+     */
+    it("should keep the error type and code the server sent", async () => {
+      const err: FetchError = await client
+        .fetch<any>("throw-coded")
+        .catch((e) => e)
+
+      expect(err.status).toEqual(400)
+      expect(err.type).toEqual("not_allowed")
+      expect(err.code).toEqual("bundle_in_use")
+      expect(err.message).toEqual(
+        'Cannot delete because it is used in the bundle(s): "Camera kit" (prod_kit).'
+      )
+    })
+
+    it("should leave the type and code unset when the server sends none", async () => {
+      const err: FetchError = await client.fetch<any>("throw").catch((e) => e)
+
+      expect(err.type).toBeUndefined()
+      expect(err.code).toBeUndefined()
     })
   })
 
