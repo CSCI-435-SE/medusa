@@ -50,6 +50,9 @@ import { useOrderPreview } from "../../../../../hooks/api/orders"
 import { useMarkPaymentCollectionAsPaid } from "../../../../../hooks/api/payment-collections"
 import { useReservationItems } from "../../../../../hooks/api/reservations"
 import { useReturns } from "../../../../../hooks/api/returns"
+import { getOrderLineBundleComponents } from "../../../../products/common/bundles"
+import { BundleComponentBreakdown } from "./bundle-component-breakdown"
+import { BreakdownRow, CollapsibleBreakdown } from "./collapsible-breakdown"
 import { useDate } from "../../../../../hooks/use-date"
 import { getTotalCreditLines } from "../../../../../lib/credit-line"
 import { formatCurrency } from "../../../../../lib/format-currency"
@@ -399,7 +402,15 @@ const Item = ({
   const { t } = useTranslation()
 
   const isInventoryManaged = item.variant?.manage_inventory
+  /*
+   * A bundle's variant is linked to the inventory items of all its components,
+   * so it is an inventory kit too. Its components are the useful breakdown
+   * (issue #114, AC 6), and listing both would say the same thing twice, in
+   * inventory items once and in variants once.
+   */
+  const isBundleLine = !!getOrderLineBundleComponents(item)?.length
   const hasInventoryKit =
+    !isBundleLine &&
     isInventoryManaged &&
     ((item.variant?.inventory_items?.length || 0) > 1 ||
       item.variant?.inventory_items?.some(
@@ -490,6 +501,10 @@ const Item = ({
 
       {hasInventoryKit && <InventoryKitBreakdown item={item} />}
 
+      {isBundleLine && (
+        <BundleComponentBreakdown item={item} returns={returns} />
+      )}
+
       {returns.map((r) => (
         <ReturnBreakdown key={r.id} orderReturn={r} itemId={item.id} />
       ))}
@@ -534,7 +549,9 @@ const ItemBreakdown = ({
 
   const { returns = [] } = useReturns({
     order_id: order.id,
-    fields: "*items,*items.reason",
+    // `items.metadata` names the bundle component a return item brought back
+    // (issue #114, AC 6).
+    fields: "*items,*items.reason,+items.metadata",
   }) as { returns: ExtendedReturn[] | undefined }
 
   const reservationsMap = useMemo(
@@ -946,57 +963,31 @@ const DiscountAndTotalBreakdown = ({
 const InventoryKitBreakdown = ({ item }: { item: AdminOrderLineItem }) => {
   const { t } = useTranslation()
 
-  const [isOpen, setIsOpen] = useState(false)
-
   const inventory = item.variant?.inventory_items || []
 
   return (
-    <>
-      <div
-        onClick={() => setIsOpen((o) => !o)}
-        className="flex cursor-pointer items-center gap-2 border-t border-dashed px-6 py-4"
-      >
-        <TriangleDownMini
-          style={{
-            transform: `rotate(${isOpen ? 0 : -90}deg)`,
-          }}
-        />
-        <span className="text-ui-fg-muted txt-small select-none">
-          {t("orders.summary.inventoryKit", { count: inventory.length })}
-        </span>
-      </div>
-      {isOpen && (
-        <div className="flex flex-col gap-1 px-6 pb-4">
-          {inventory.map((i) => {
-            return (
-              <div
-                key={i.inventory?.id}
-                className="flex items-center justify-between gap-x-2"
-              >
-                <div>
-                  <span className="txt-small text-ui-fg-subtle font-medium">
-                    {i.inventory?.title}
+    <CollapsibleBreakdown
+      label={t("orders.summary.inventoryKit", { count: inventory.length })}
+    >
+      {inventory.map((i) => (
+        <BreakdownRow
+          key={i.inventory?.id}
+          name={
+            <>
+              {i.inventory?.title}
 
-                    {i.inventory?.sku && (
-                      <span className="text-ui-fg-subtle font-normal">
-                        {" "}
-                        ⋅ {i.inventory?.sku}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <div className="relative flex-1">
-                  <div className="bottom-[calc(50% - 2px)] absolute h-[1px] w-full border-b border-dashed" />
-                </div>
-                <span className="txt-small text-ui-fg-muted">
-                  {i.required_quantity}x
+              {i.inventory?.sku && (
+                <span className="text-ui-fg-subtle font-normal">
+                  {" "}
+                  ⋅ {i.inventory?.sku}
                 </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </>
+              )}
+            </>
+          }
+          value={`${i.required_quantity}x`}
+        />
+      ))}
+    </CollapsibleBreakdown>
   )
 }
 
