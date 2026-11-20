@@ -61,6 +61,7 @@ vi.mock("react-i18next", () => ({
       const labels: Record<string, string> = {
         "actions.create": "Create",
         "actions.import": "Import",
+        "actions.export": "Export",
       }
       return labels[key] ?? key
     },
@@ -70,7 +71,7 @@ vi.mock("react-i18next", () => ({
 import { PromotionListTable } from "./promotion-list-table"
 
 // The table reads the route's loader data, so it needs a data router.
-const renderTable = () =>
+const renderTable = (entry = "/promotions") =>
   render(
     <RouterProvider
       router={createMemoryRouter(
@@ -81,7 +82,7 @@ const renderTable = () =>
             loader: () => null,
           },
         ],
-        { initialEntries: ["/promotions"] }
+        { initialEntries: [entry] }
       )}
     />
   )
@@ -103,5 +104,21 @@ describe("PromotionListTable", () => {
 
     const link = await screen.findByRole("link", { name: "Create" })
     expect(link.getAttribute("href")).toBe("/promotions/create")
+  })
+
+  it("links to the promotion export from the list header", async () => {
+    renderTable()
+
+    const link = await screen.findByRole("link", { name: "Export" })
+    expect(link.getAttribute("href")).toBe("/promotions/export")
+  })
+
+  it("forwards the list's filters and search to the export", async () => {
+    renderTable("/promotions?q=SAVE&order=code")
+
+    const link = await screen.findByRole("link", { name: "Export" })
+    expect(link.getAttribute("href")).toBe(
+      "/promotions/export?q=SAVE&order=code"
+    )
   })
 })

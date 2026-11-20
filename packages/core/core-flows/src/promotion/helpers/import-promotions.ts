@@ -39,7 +39,11 @@ export type PromotionImportRow = {
   buy_rules: string
 }
 
-const COLUMNS: Record<
+/**
+ * The import template's columns, in order. The export builds its header row
+ * from this map so the two sides can't drift apart.
+ */
+export const COLUMNS: Record<
   Exclude<keyof PromotionImportRow, "rowNumber">,
   string
 > = {

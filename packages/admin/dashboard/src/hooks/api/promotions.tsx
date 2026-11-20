@@ -239,6 +239,23 @@ export const useImportPromotions = (
   })
 }
 
+export const useExportPromotions = (
+  query?: HttpTypes.AdminGetPromotionsParams,
+  options?: UseMutationOptions<
+    HttpTypes.AdminExportPromotionsResponse,
+    FetchError,
+    HttpTypes.AdminGetPromotionsParams
+  >
+) => {
+  return useMutation({
+    mutationFn: () => sdk.admin.promotion.export(query),
+    onSuccess: (data, variables, context) => {
+      options?.onSuccess?.(data, variables, context)
+    },
+    ...options,
+  })
+}
+
 export const useUpdatePromotion = (
   id: string,
   options?: UseMutationOptions<

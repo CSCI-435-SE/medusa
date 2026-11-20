@@ -2514,6 +2514,14 @@
       "description": "Create a draft copy of this promotion with its settings and conditions. The copy isn't added to a campaign.",
       "successToast": "Promotion {{code}} was created as a draft"
     },
+    "export": {
+      "header": "Export Promotion List",
+      "description": "Export the promotion list to a CSV file in the promotion import's format.",
+      "success": {
+        "title": "Export started",
+        "description": "You will be notified when the export is ready."
+      }
+    },
     "import": {
       "header": "Import Promotions",
       "description": "Import promotions by providing a CSV file in a pre-defined format",
