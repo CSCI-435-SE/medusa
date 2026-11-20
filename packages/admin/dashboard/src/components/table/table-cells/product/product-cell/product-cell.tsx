@@ -1,3 +1,4 @@
+import { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Thumbnail } from "../../../../common/thumbnail"
@@ -5,9 +6,10 @@ import { HttpTypes } from "@medusajs/types"
 
 type ProductCellProps = {
   product: Pick<HttpTypes.AdminProduct, "thumbnail" | "title">
+  badge?: ReactNode
 }
 
-export const ProductCell = ({ product }: ProductCellProps) => {
+export const ProductCell = ({ product, badge }: ProductCellProps) => {
   return (
     <div className="flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden">
       <div className="w-fit flex-shrink-0">
@@ -16,6 +18,7 @@ export const ProductCell = ({ product }: ProductCellProps) => {
       <span title={product.title} className="truncate">
         {product.title}
       </span>
+      {badge && <div className="flex-shrink-0">{badge}</div>}
     </div>
   )
 }
