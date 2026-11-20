@@ -220,36 +220,51 @@ describe("getOrderLineBundleComponents", () => {
 })
 
 describe("getReturnedBundleComponentUnits", () => {
+  // AC 6 shows which components "have been returned", so a component counts
+  // once it has come back, not when a return naming it is requested. Return
+  // items carry both numbers: `quantity` is what the customer said they would
+  // send, `received_quantity` is what arrived.
   const returns = [
     {
       id: "ret_1",
+      status: "received",
       items: [
         {
           item_id: "ordli_kit",
           quantity: 1,
+          received_quantity: 1,
           metadata: { bundle_component: { variant_id: "variant_bag" } },
         },
         {
           item_id: "ordli_kit",
           quantity: 2,
+          received_quantity: 2,
           metadata: { bundle_component: { variant_id: "variant_lens" } },
         },
         // A whole-bundle return of the same line, which names no component.
-        { item_id: "ordli_kit", quantity: 1, metadata: null },
+        {
+          item_id: "ordli_kit",
+          quantity: 1,
+          received_quantity: 1,
+          metadata: null,
+        },
         // Another line's component.
         {
           item_id: "ordli_other",
           quantity: 5,
+          received_quantity: 5,
           metadata: { bundle_component: { variant_id: "variant_bag" } },
         },
       ],
     },
     {
       id: "ret_2",
+      status: "received",
       items: [
         {
           item_id: "ordli_kit",
           quantity: 1,
+          received_quantity: 1,
           metadata: { bundle_component: { variant_id: "variant_bag" } },
         },
       ],
@@ -261,6 +276,7 @@ describe("getReturnedBundleComponentUnits", () => {
         {
           item_id: "ordli_kit",
           quantity: 4,
+          received_quantity: 0,
           metadata: { bundle_component: { variant_id: "variant_bag" } },
         },
       ],
@@ -282,6 +298,44 @@ describe("getReturnedBundleComponentUnits", () => {
 
   it("is empty when nothing was returned", () => {
     expect(getReturnedBundleComponentUnits([], "ordli_kit")).toEqual({})
+  })
+
+  it("counts nothing for a return that is requested but not received", () => {
+    const requested = {
+      id: "ret_4",
+      status: "requested",
+      items: [
+        {
+          item_id: "ordli_kit",
+          quantity: 3,
+          received_quantity: 0,
+          metadata: { bundle_component: { variant_id: "variant_bag" } },
+        },
+      ],
+    } as any
+
+    expect(getReturnedBundleComponentUnits([requested], "ordli_kit")).toEqual(
+      {}
+    )
+  })
+
+  it("counts only the units of a partly received return that came back", () => {
+    const partial = {
+      id: "ret_5",
+      status: "partially_received",
+      items: [
+        {
+          item_id: "ordli_kit",
+          quantity: 3,
+          received_quantity: 1,
+          metadata: { bundle_component: { variant_id: "variant_bag" } },
+        },
+      ],
+    } as any
+
+    expect(getReturnedBundleComponentUnits([partial], "ordli_kit")).toEqual({
+      variant_bag: 1,
+    })
   })
 })
 

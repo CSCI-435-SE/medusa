@@ -58,4 +58,14 @@ describe("ProductTitleCell", () => {
     )
     expect(screen.queryByText("Bundle")).toBeNull()
   })
+
+  it("shows no badge for a bundle value that holds no component list", () => {
+    // The badge now uses the shared isBundle from products/common/bundles,
+    // which requires an actual components array rather than any object. The
+    // local copy this replaced treated {} as a bundle. (#114 review, #122)
+    render(<ProductTitleCell product={product({ bundle: {} })} />)
+
+    expect(screen.getByText("Camera kit")).toBeTruthy()
+    expect(screen.queryByText("Bundle")).toBeNull()
+  })
 })
