@@ -86,27 +86,42 @@ export const normalizeVariants = (
         ): item is { required_quantity: number; inventory_item_id: string } =>
           item !== false
       ),
-    prices: Object.entries(variant.prices || {})
-      .map(([key, value]: any) => {
-        if (value === "" || value === undefined) {
-          return undefined
-        }
-
-        if (key.startsWith("reg_")) {
-          return {
-            currency_code: regionsCurrencyMap[key],
-            amount: castNumber(value),
-            rules: { region_id: key },
-          }
-        } else {
-          return {
-            currency_code: key,
-            amount: castNumber(value),
-          }
-        }
-      })
-      .filter((v) => !!v),
+    prices: normalizePrices(variant.prices, regionsCurrencyMap),
   }))
+}
+
+/**
+ * Turns the price record a pricing form holds into the list of prices the API
+ * takes. Keys are either a currency code or a region ID (`reg_...`), which
+ * becomes a region-scoped price in that region's currency. Blank inputs are
+ * left out, so a currency with no price set is not sent at all.
+ *
+ * Shared with the bundle form, which prices a single variant the same way.
+ */
+export const normalizePrices = (
+  prices: Record<string, number | string | undefined> | undefined,
+  regionsCurrencyMap: Record<string, string>
+): HttpTypes.AdminCreateProductVariantPrice[] => {
+  return Object.entries(prices || {})
+    .map(([key, value]: any) => {
+      if (value === "" || value === undefined || value === null) {
+        return undefined
+      }
+
+      if (key.startsWith("reg_")) {
+        return {
+          currency_code: regionsCurrencyMap[key],
+          amount: castNumber(value),
+          rules: { region_id: key },
+        }
+      } else {
+        return {
+          currency_code: key,
+          amount: castNumber(value),
+        }
+      }
+    })
+    .filter((v) => !!v) as HttpTypes.AdminCreateProductVariantPrice[]
 }
 
 export const decorateVariantsWithDefaultValues = (
