@@ -292,11 +292,25 @@ export const CreateProduct = z
 
 export const AdminCreateProduct = WithAdditionalData(CreateProduct)
 
+/**
+ * The attribute groups a duplicate may copy. A group that is left out is
+ * copied, so an unchanged request duplicates the whole product.
+ */
+export const DuplicateProductInclude = z
+  .object({
+    images: z.boolean().optional(),
+    variants: z.boolean().optional(),
+    prices: z.boolean().optional(),
+    inventory_settings: z.boolean().optional(),
+  })
+  .strict()
+
 export type AdminDuplicateProductType = z.infer<typeof DuplicateProduct>
 export const DuplicateProduct = z
   .object({
     title: z.string().trim().min(1).max(255),
     handle: z.string().trim().min(1),
+    include: DuplicateProductInclude.optional(),
   })
   .strict()
 

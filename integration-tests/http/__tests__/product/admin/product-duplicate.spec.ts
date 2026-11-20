@@ -278,6 +278,144 @@ medusaIntegrationTestRunner({
 
         expect(error.response.status).toEqual(404)
       })
+
+      describe("duplication options", () => {
+        const duplicate = (include?: Record<string, unknown>) =>
+          api.post(
+            `/admin/products/${original.id}/duplicate?fields=${FIELDS}`,
+            {
+              title: "Classic Tee - Long Sleeve",
+              handle: "classic-tee-ls",
+              ...(include ? { include } : {}),
+            },
+            adminHeaders
+          )
+
+        // AC3: the groups default to copied, so a request that sends none
+        // behaves the way duplication did before the options existed.
+        it("copies every group when include is omitted", async () => {
+          const copy = (await duplicate()).data.product
+
+          expect(copy.images).toHaveLength(1)
+          expect(copy.variants).toHaveLength(2)
+          expect(copy.variants[0].prices.length).toBeGreaterThan(0)
+        })
+
+        it("copies every group for an empty include", async () => {
+          const copy = (await duplicate({})).data.product
+
+          expect(copy.images).toHaveLength(1)
+          expect(copy.variants).toHaveLength(2)
+        })
+
+        it("copies no images when images are not selected", async () => {
+          const copy = (await duplicate({ images: false })).data.product
+
+          expect(copy.images ?? []).toHaveLength(0)
+          // The other groups are untouched.
+          expect(copy.variants).toHaveLength(2)
+        })
+
+        // AC6: options are still required for the product to be valid, so the
+        // copy keeps them even with no variants to use them.
+        it("copies no variants but keeps options when variants are not selected", async () => {
+          const copy = (await duplicate({ variants: false })).data.product
+
+          expect(copy.variants ?? []).toHaveLength(0)
+          expect(copy.options.map((o) => o.title).sort()).toEqual([
+            "Color",
+            "Size",
+          ])
+          expect(copy.status).toEqual("draft")
+        })
+
+        it("copies variants without prices when prices are not selected", async () => {
+          const copy = (await duplicate({ prices: false })).data.product
+
+          expect(copy.variants).toHaveLength(2)
+          for (const variant of copy.variants) {
+            expect(variant.prices ?? []).toHaveLength(0)
+          }
+        })
+
+        // AC4: with the settings left out the variants fall back to the
+        // product module's defaults rather than the original's values. The
+        // original's "Blue / M" does not manage inventory; the copy does.
+        it("falls back to the default inventory settings when they are not selected", async () => {
+          const copy = (await duplicate({ inventory_settings: false })).data
+            .product
+
+          const blueM = copy.variants.find((v) => v.title === "Blue / M")
+          expect(blueM.manage_inventory).toEqual(true)
+          expect(blueM.allow_backorder).toEqual(false)
+        })
+
+        it("copies the original inventory settings when they are selected", async () => {
+          const copy = (await duplicate({ inventory_settings: true })).data
+            .product
+
+          const blueM = copy.variants.find((v) => v.title === "Blue / M")
+          expect(blueM.manage_inventory).toEqual(false)
+        })
+
+        // AC8: prices are stored on the variants, so asking for prices without
+        // variants copies neither instead of failing.
+        it("ignores prices when variants are not selected", async () => {
+          const response = await duplicate({
+            variants: false,
+            prices: true,
+            inventory_settings: true,
+          })
+
+          expect(response.status).toEqual(200)
+          expect(response.data.product.variants ?? []).toHaveLength(0)
+        })
+
+        it("creates a draft that leaves the original alone for the narrowest selection", async () => {
+          const copy = (
+            await duplicate({
+              images: false,
+              variants: false,
+              prices: false,
+              inventory_settings: false,
+            })
+          ).data.product
+
+          expect(copy.id).not.toEqual(original.id)
+          expect(copy.status).toEqual("draft")
+
+          const after = (
+            await api.get(
+              `/admin/products/${original.id}?fields=${FIELDS}`,
+              adminHeaders
+            )
+          ).data.product
+          expect(after.status).toEqual("published")
+          expect(after.images).toHaveLength(1)
+          expect(after.variants).toHaveLength(2)
+        })
+
+        it("rejects an unknown group and creates nothing", async () => {
+          const before = (await api.get("/admin/products", adminHeaders)).data
+            .count
+
+          const error = await duplicate({ inventory_quantities: true }).catch(
+            (e) => e
+          )
+
+          expect(error.response.status).toEqual(400)
+
+          const after = (await api.get("/admin/products", adminHeaders)).data
+            .count
+          expect(after).toEqual(before)
+        })
+
+        it("rejects a group that is not a boolean", async () => {
+          const error = await duplicate({ images: "yes" }).catch((e) => e)
+
+          expect(error.response.status).toEqual(400)
+        })
+      })
     })
   },
 })

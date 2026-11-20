@@ -1906,9 +1906,41 @@
             },
             "successToast": {
               "type": "string"
+            },
+            "include": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "images": {
+                  "type": "string"
+                },
+                "variants": {
+                  "type": "string"
+                },
+                "prices": {
+                  "type": "string"
+                },
+                "inventorySettings": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "images",
+                "variants",
+                "prices",
+                "inventorySettings",
+                "hint"
+              ],
+              "additionalProperties": false
             }
           },
-          "required": ["header", "description", "successToast"],
+          "required": ["header", "description", "successToast", "include"],
           "additionalProperties": false
         },
         "edit": {

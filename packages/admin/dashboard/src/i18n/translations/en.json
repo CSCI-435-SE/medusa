@@ -475,7 +475,15 @@
     "duplicate": {
       "header": "Duplicate Product",
       "description": "Create a draft copy of this product with its options, variants, prices and images.",
-      "successToast": "Product {{title}} was successfully created as a draft."
+      "successToast": "Product {{title}} was successfully created as a draft.",
+      "include": {
+        "label": "Copy",
+        "images": "Images",
+        "variants": "Variants",
+        "prices": "Prices",
+        "inventorySettings": "Inventory settings",
+        "hint": "Basic product information and options are always copied. Stock quantities are never copied."
+      }
     },
     "edit": {
       "header": "Edit Product",
