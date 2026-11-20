@@ -312,6 +312,50 @@ describe("buildDuplicateProductInput", () => {
     })
   })
 
+  // The source is loaded field by field through Query, so a nested list can
+  // come back absent rather than empty, and an option value can come back
+  // without the option it belongs to. AC6 requires the copy to stay valid
+  // input for createProductsWorkflow in every one of those cases.
+  describe("nested data the source can come back without", () => {
+    const withVariant = (variant: Record<string, unknown>) =>
+      build(
+        { variants: true, prices: true, inventory_settings: true },
+        { variants: [variant] }
+      ) as any
+
+    it("builds empty options for a variant with no options at all", () => {
+      const result = withVariant({ title: "S", prices: [] })
+
+      // toStrictEqual, not toEqual: toEqual ignores keys whose value is
+      // undefined, so it cannot tell {} from { undefined: undefined }.
+      expect(result.variants[0].options).toStrictEqual({})
+    })
+
+    it("builds no prices for a variant with no prices at all", () => {
+      const result = withVariant({ title: "S", options: [] })
+
+      expect(result.variants[0].prices).toEqual([])
+    })
+
+    it("builds empty rules for a price with no price rules at all", () => {
+      const result = withVariant({
+        title: "S",
+        options: [],
+        prices: [{ amount: 10, currency_code: "usd" }],
+      })
+
+      expect(result.variants[0].prices[0].rules).toStrictEqual({})
+    })
+
+    it("does not throw on an option value that has no option linked", () => {
+      // A crash here would fail the whole duplication inside transform, which
+      // AC9 requires to surface as an error on the form instead.
+      expect(() =>
+        withVariant({ title: "S", options: [{ value: "S" }], prices: [] })
+      ).not.toThrow()
+    })
+  })
+
   describe("combinations", () => {
     // AC6: the narrowest selection still produces a product the create
     // workflow accepts, which means a title, a handle and options.
