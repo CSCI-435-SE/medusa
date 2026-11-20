@@ -13,6 +13,7 @@ import { Link, Outlet, useLoaderData, useLocation } from "react-router-dom"
 
 import { HttpTypes } from "@medusajs/types"
 import { ActionMenu } from "../../../../../components/common/action-menu"
+import { ProductHeader } from "../../../../../components/table/table-cells/product/product-cell"
 import { _DataTable } from "../../../../../components/table/data-table"
 import {
   useDeleteProduct,
@@ -25,6 +26,7 @@ import { useDataTable } from "../../../../../hooks/use-data-table"
 import { productsLoader } from "../../loader"
 import { showDeleteError } from "../../../common/components/bundle-usage"
 import { useFeatureFlag } from "../../../../../providers/feature-flag-provider"
+import { ProductTitleCell } from "./product-title-cell"
 
 const PAGE_SIZE = 20
 
@@ -40,6 +42,9 @@ export const ProductListTable = () => {
   const { products, count, isLoading, isError, error } = useProducts(
     {
       ...searchParams,
+      // metadata is needed for the bundle badge; added here, not to the
+      // shared DEFAULT_FIELDS, so other product tables don't fetch it.
+      fields: `${searchParams.fields},metadata`,
       is_giftcard: false,
     },
     {
@@ -207,7 +212,13 @@ const useColumns = () => {
 
   const columns = useMemo(
     () => [
-      ...base,
+      // Same product column as the shared hook, plus the bundle badge.
+      columnHelper.display({
+        id: "product",
+        header: () => <ProductHeader />,
+        cell: ({ row }) => <ProductTitleCell product={row.original} />,
+      }),
+      ...base.filter((column) => column.id !== "product"),
       columnHelper.display({
         id: "actions",
         cell: ({ row }) => {

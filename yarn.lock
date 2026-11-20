@@ -4355,6 +4355,8 @@ __metadata:
     "@medusajs/ui-preset": 2.17.2
     "@radix-ui/react-dialog": 1.1.4
     "@radix-ui/react-dismissable-layer": 1.1.4
+    "@stryker-mutator/core": 10.1.1
+    "@stryker-mutator/vitest-runner": 10.1.1
     "@tanstack/react-query": 5.64.2
     "@tanstack/react-table": 8.20.5
     "@tanstack/react-virtual": ^3.8.3
@@ -11955,6 +11957,21 @@ __metadata:
   version: 10.1.1
   resolution: "@stryker-mutator/util@npm:10.1.1"
   checksum: 14ff278714e1253118e76714b25f15b318b34a5319fd6b956f9d4c82d77a3b77f47e4e8ff797e2151191a699aa3fa7e2a4708e90a67d026854ae755df59404ef
+  languageName: node
+  linkType: hard
+
+"@stryker-mutator/vitest-runner@npm:10.1.1":
+  version: 10.1.1
+  resolution: "@stryker-mutator/vitest-runner@npm:10.1.1"
+  dependencies:
+    "@stryker-mutator/api": 10.1.1
+    "@stryker-mutator/util": 10.1.1
+    semver: ^7.7.4
+    tslib: ~2.8.0
+  peerDependencies:
+    "@stryker-mutator/core": 10.1.1
+    vitest: ">=2.0.0"
+  checksum: 47d7fddb6099d8c5c7857bd2b99d42853d5a2dc0d978706b228c90d5a794064901d337c0f2c19e96abed54520249675de425bb8b21af9b644bf997658214c2a0
   languageName: node
   linkType: hard
 

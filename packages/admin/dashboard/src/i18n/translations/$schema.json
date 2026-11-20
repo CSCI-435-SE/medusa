@@ -1890,9 +1890,12 @@
           "properties": {
             "noRecordsMessage": {
               "type": "string"
+            },
+            "bundleBadge": {
+              "type": "string"
             }
           },
-          "required": ["noRecordsMessage"],
+          "required": ["noRecordsMessage", "bundleBadge"],
           "additionalProperties": false
         },
         "duplicate": {
