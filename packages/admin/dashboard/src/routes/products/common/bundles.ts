@@ -228,7 +228,13 @@ export const getOrderLineBundleComponents = (
 type ReturnWithItems = {
   canceled_at?: string | null
   status?: string | null
-  items?: ({ item_id: string; quantity: number } & WithMetadata)[] | null
+  items?:
+    | ({
+        item_id: string
+        quantity: number
+        received_quantity?: number
+      } & WithMetadata)[]
+    | null
 }
 
 /**
@@ -238,6 +244,12 @@ type ReturnWithItems = {
  * Only return items that name a component are counted: a whole-bundle return
  * is already shown by the line's own returned quantity. Canceled returns are
  * left out because nothing came back.
+ *
+ * What is counted is `received_quantity`, not `quantity`. A return item's
+ * `quantity` is what the customer said they would send, so counting it would
+ * mark a component returned the moment a return is requested, before anything
+ * arrives. `received_quantity` is what the store actually took back, which is
+ * what AC 6 shows, and it is already right for a partly received return.
  */
 export const getReturnedBundleComponentUnits = (
   returns: ReturnWithItems[],
@@ -263,8 +275,16 @@ export const getReturnedBundleComponentUnits = (
         continue
       }
 
+      const received = Number(item.received_quantity ?? 0)
+
+      // Components with nothing back yet are left out of the map entirely, so
+      // callers can treat a missing key and a zero the same way.
+      if (!received) {
+        continue
+      }
+
       units[component.variant_id] =
-        (units[component.variant_id] ?? 0) + Number(item.quantity ?? 0)
+        (units[component.variant_id] ?? 0) + received
     }
   }
 
